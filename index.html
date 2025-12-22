@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="description" content="安全、快速、精準的金融資料轉換工具，支援 CSV 轉 Excel。">
+    <meta name="author" content="LiangHao">
+    <title>CSV 轉 Excel 工具 | LiangHao Dev</title>
+    <link rel="icon" type="image/png" href="favicon.png">
+    <meta property="og:title" content="CSV 轉 Excel 工具 | LiangHao Dev">
+    <meta property="og:description" content="安全、快速、精準的金融資料轉換工具，支援 CSV 轉 Excel。">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://lianghao02.github.io/CSV_to_Excel/">
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Noto+Sans+TC:wght@400;700&display=swap"
+        rel="stylesheet">
+
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Tailwind CSS -->
+    <!-- Tailwind CSS (Local Build) -->
+    <link href="./output.css" rel="stylesheet">
+
+    <!-- SheetJS Library (Local) -->
+    <script src="xlsx.full.min.js"></script>
+</head>
+
+<body class="bg-[#f4f6f9] text-[#333333] font-sans flex justify-center items-center min-h-screen p-5">
+    <div
+        class="container w-full max-w-[600px] bg-white rounded-xl shadow-[0_10px_25px_-5px_rgba(0,0,0,0.1),0_8px_10px_-6px_rgba(0,0,0,0.1)] p-10 transition-transform duration-300">
+        <header class="text-center mb-8">
+            <h1 class="text-3xl font-bold text-primary mb-2"><i class="fa-solid fa-file-csv mr-2"></i>CSV 轉 Excel 轉換器
+            </h1>
+            <p class="text-gray-500 text-base">安全、快速、精準的金融資料轉換工具</p>
+        </header>
+
+        <main>
+            <!-- Usage Guide Section -->
+            <section
+                class="usage-guide flex flex-col md:flex-row justify-center items-center mb-8 bg-slate-50 p-4 rounded-xl border border-slate-200 gap-4 md:gap-0">
+                <div class="step flex flex-col items-center gap-2 text-primary">
+                    <div
+                        class="step-icon w-9 h-9 flex items-center justify-center bg-white text-accent rounded-full shadow-sm text-lg">
+                        <i class="fa-solid fa-upload"></i>
+                    </div>
+                    <span class="text-sm font-semibold">1. 拖曳檔案</span>
+                </div>
+                <div class="step-arrow hidden md:block text-slate-300 mx-4 text-sm">
+                    <i class="fa-solid fa-chevron-right"></i>
+                </div>
+                <div class="step flex flex-col items-center gap-2 text-primary">
+                    <div
+                        class="step-icon w-9 h-9 flex items-center justify-center bg-white text-accent rounded-full shadow-sm text-lg">
+                        <i class="fa-solid fa-sliders"></i>
+                    </div>
+                    <span class="text-sm font-semibold">2. 選擇模式</span>
+                </div>
+                <div class="step-arrow hidden md:block text-slate-300 mx-4 text-sm">
+                    <i class="fa-solid fa-chevron-right"></i>
+                </div>
+                <div class="step flex flex-col items-center gap-2 text-primary">
+                    <div
+                        class="step-icon w-9 h-9 flex items-center justify-center bg-white text-accent rounded-full shadow-sm text-lg">
+                        <i class="fa-solid fa-bolt"></i>
+                    </div>
+                    <span class="text-sm font-semibold">3. 開始轉換</span>
+                </div>
+            </section>
+
+            <div class="upload-section">
+                <!-- Drop Zone -->
+                <div id="drop-zone"
+                    class="drop-zone border-2 border-dashed border-gray-200 rounded-xl py-10 px-5 text-center cursor-pointer transition-all duration-300 bg-[#fafafa] hover:border-accent hover:bg-[#eef2ff] group">
+                    <div class="icon text-5xl mb-4 text-[#333333] group-hover:text-primary transition-colors">
+                        <i class="fa-solid fa-folder-open"></i>
+                    </div>
+                    <p class="text-gray-500 font-medium">拖放 CSV 檔案至此，或點擊選擇檔案</p>
+                    <input type="file" id="file-input" multiple accept=".csv" hidden>
+                </div>
+                <!-- File List -->
+                <div id="file-list" class="file-list mt-5 max-h-[150px] overflow-y-auto"></div>
+            </div>
+
+            <div class="options-section mt-8">
+                <h2 class="text-lg font-bold mb-4 text-primary">匯出設定</h2>
+                <div class="radio-group flex flex-col gap-3">
+                    <label
+                        class="radio-option flex items-center cursor-pointer p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-all duration-200 select-none">
+                        <input type="radio" name="export-mode" value="individual" checked class="hidden peer">
+                        <!-- Custom Radio UI -->
+                        <div
+                            class="radio-custom w-5 h-5 border-2 border-gray-300 rounded-full mr-3 relative peer-checked:border-accent peer-checked:after:content-[''] peer-checked:after:absolute peer-checked:after:top-1/2 peer-checked:after:left-1/2 peer-checked:after:-translate-x-1/2 peer-checked:after:-translate-y-1/2 peer-checked:after:w-2.5 peer-checked:after:h-2.5 peer-checked:after:bg-accent peer-checked:after:rounded-full transition-all">
+                        </div>
+                        <span
+                            class="label-text text-gray-600 font-medium peer-checked:text-accent peer-checked:font-semibold">個別儲存
+                            (原檔名)</span>
+                    </label>
+                    <label
+                        class="radio-option flex items-center cursor-pointer p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-all duration-200 select-none">
+                        <input type="radio" name="export-mode" value="merged" class="hidden peer">
+                        <div
+                            class="radio-custom w-5 h-5 border-2 border-gray-300 rounded-full mr-3 relative peer-checked:border-accent peer-checked:after:content-[''] peer-checked:after:absolute peer-checked:after:top-1/2 peer-checked:after:left-1/2 peer-checked:after:-translate-x-1/2 peer-checked:after:-translate-y-1/2 peer-checked:after:w-2.5 peer-checked:after:h-2.5 peer-checked:after:bg-accent peer-checked:after:rounded-full transition-all">
+                        </div>
+                        <span
+                            class="label-text text-gray-600 font-medium peer-checked:text-accent peer-checked:font-semibold">合併儲存
+                            (分頁 01, 02...)</span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="action-section mt-8">
+                <button id="convert-btn" disabled
+                    class="w-full py-3 px-5 bg-primary text-white border-none rounded-xl text-base font-semibold cursor-pointer transition-colors duration-300 hover:bg-primary-hover disabled:bg-gray-400 disabled:cursor-not-allowed">開始轉換</button>
+            </div>
+        </main>
+
+        <footer class="mt-10 text-center text-slate-500 text-sm pt-5 border-t border-slate-200">
+            <p>&copy; 2025 CSV to Excel Tool. All rights reserved.</p>
+        </footer>
+    </div>
+    <script src="script.js"></script>
+</body>
+
+</html>
