@@ -16,23 +16,63 @@
 
 ## 🚀 使用方式
 
-1. 下載此專案至本地端。
-2. 雙擊開啟 `index.html` (需保持網路連線以載入 SheetJS 函式庫)。
-3. 將 CSV 檔案拖入虛線框區域。
-4. 選擇匯出模式（個別儲存或合併儲存）。
-5. 點擊「開始轉換」按鈕。
-6. 轉換完成後，檔案將自動下載。
+## 🚀 使用方式 (開發與執行)
+
+### 1. 安裝依賴
+請確保已安裝 Node.js，然後在專案根目錄執行：
+```bash
+npm install
+```
+
+
+### 2. 開發模式 (Development)
+
+啟動 Tailwind CSS 監聽模式，即時編譯 CSS：
+
+```bash
+npm run dev
+```
+
+### 3. 建置專案 (Build)
+
+編譯並壓縮 CSS 以供生產環境使用：
+
+```bash
+npm run build
+```
+
+### 4. 執行
+
+直接使用瀏覽器開啟 `index.html` 即可使用。
 
 ## 🛠️ 技術棧
 
-- **HTML5 / CSS3**：現代化 RWD 介面設計。
-- **JavaScript (Vanilla)**：核心邏輯處理。
-- **SheetJS (xlsx)**：強大的 Excel 檔案生成函式庫。
+- **HTML5**: 語意化標籤結構。
+- **Tailwind CSS**: Utility-first CSS 框架 (本地編譯)。
+- **JavaScript (Vanilla)**: 核心邏輯處理 (ES6+)。
+- **SheetJS (xlsx)**: 用於 Excel 生成 (本地資源，無需連網)。
+- **FontAwesome (SVG)**: 使用 Inline SVG 圖示，無外部請求。
 
 ## ⚠️ 注意事項
 
-- 本工具使用 CDN 載入外部函式庫，使用時請確保電腦已連接網際網路。
+- 本專案已完全**在地化 (Localized)**，除了 Google Fonts 外不依賴外部 CDN，可離線使用 (需先下載字體或接受預設字體)。
 - 為了確保資料正確性，所有欄位預設以「文字」格式寫入 Excel，避免 Excel 自動格式化造成的資料失真。
+
+## 📂 專案結構
+
+```text
+/
+├── assets/
+│   ├── images/   # 圖片資源 (favicon)
+│   └── vendor/   # 第三方套件 (xlsx)
+├── src/
+│   ├── input.css # Tailwind 輸入檔
+│   └── script.js # 核心邏輯
+├── dist/         # (可選) 輸出目錄
+├── index.html    # 主要入口
+├── output.css    # Tailwind 編譯輸出
+└── tailwind.config.js
+```
 
 ---
 *Developed for efficient financial data processing.*

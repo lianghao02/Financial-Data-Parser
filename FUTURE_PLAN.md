@@ -39,8 +39,8 @@
 
 - **現況**：依賴 CDN 載入 SheetJS，需連網。
 - **計畫**：
-  - 下載 `xlsx.full.min.js` 到本地專案資料夾，修改 `index.html` 引用本地路徑，即可完全離線使用。
-  - 設定 `manifest.json` 與 Service Worker，將其升級為 PWA (Progressive Web App)，可安裝在桌面或手機上。
+  - [x] 下載 `xlsx.full.min.js` 到本地專案資料夾，修改 `index.html` 引用本地路徑，即可完全離線使用。(已完成)
+  - [ ] 設定 `manifest.json` 與 Service Worker，將其升級為 PWA (Progressive Web App)，可安裝在桌面或手機上。
 
 ### 5. 錯誤處理與提示優化
 
