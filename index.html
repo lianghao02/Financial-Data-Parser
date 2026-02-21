@@ -332,9 +332,70 @@
                 updateConvertBtn();
             }
 
-            // ... (updateFileList, formatSize, removeFile, updateConvertBtn remain same) ...
+            function updateFileList() {
+                fileListEl.innerHTML = "";
+                filesToProcess.forEach((file, index) => {
+                    const item = document.createElement("div");
+                    item.className = "file-item flex justify-between items-center p-3 mb-2 bg-gray-50 rounded-lg border border-gray-100 animate-fadeIn";
+                    item.innerHTML = `
+                        <div class="flex items-center gap-3 overflow-hidden">
+                            <span class="text-xl">📄</span>
+                            <div class="flex flex-col min-w-0">
+                                <span class="text-sm font-semibold truncate text-gray-700">${file.name}</span>
+                                <span class="text-xs text-gray-400">${formatSize(file.size)}</span>
+                            </div>
+                        </div>
+                        <button class="remove-btn text-gray-400 hover:text-danger transition-colors p-1" onclick="app.removeFile(${index})" title="移除檔案">
+                            <svg class="w-5 h-5 fill-current" viewBox="0 0 448 512"><path d="M135.2 17.7C135.2 12.1 139.7 7.6 145.3 7.6l157.4 0c5.6 0 10.1 4.5 10.1 10.1l0 7.5L448 25.2c13.3 0 24 10.7 24 24s-10.7 24-24 24l-31 0 0 384c0 35.3-28.7 64-64 64L95.2 512c-35.3 0-64-28.7-64-64l0-384L0 73.2c-13.3 0-24-10.7-24-24s10.7-24 24-24l112.8 0 0-7.5zM23.2 121.2L56.7 121.2 56.7 448c0 8.8 7.2 16 16 16l304 0c8.8 0 16-7.2 16-16l0-326.8 33.5 0c8.8 0 16-7.2 16-16s-7.2-16-16-16l-33.5 0 0-7.5c0-14.1-11.4-25.5-25.5-25.5L145.3 71.9c-14.1 0-25.5 11.4-25.5 25.5l0 7.5-33.5 0c-8.8 0-16 7.2-16 16s7.2 16 16 16z"/></svg>
+                        </button>
+                    `;
+                    fileListEl.appendChild(item);
+                });
+            }
 
-            // ... (applyExcelCellFormatting remains same) ...
+            function formatSize(bytes) {
+                if (bytes === 0) return '0 Bytes';
+                const k = 1024;
+                const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+                const i = Math.floor(Math.log(bytes) / Math.log(k));
+                return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+            }
+
+            function removeFile(index) {
+                filesToProcess.splice(index, 1);
+                updateFileList();
+                updateConvertBtn();
+            }
+
+            function updateConvertBtn() {
+                const count = filesToProcess.length;
+                convertBtn.disabled = count === 0;
+                convertBtn.textContent = count > 0 ? `開始轉換 (${count} 個檔案)` : "開始轉換";
+            }
+
+            function applyExcelCellFormatting(ws) {
+                const range = XLSX.utils.decode_range(ws['!ref']);
+                for (let R = range.s.r; R <= range.e.r; ++R) {
+                    for (let C = range.s.c; C <= range.e.c; ++C) {
+                        const cell_address = { c: C, r: R };
+                        const cell_ref = XLSX.utils.encode_cell(cell_address);
+                        const cell = ws[cell_ref];
+
+                        if (!cell) continue;
+
+                        // 判斷儲存格格式
+                        if (CONFIG.cellType === 'text') {
+                            cell.t = 's'; // 強制為字串
+                        } else if (CONFIG.cellType === 'number') {
+                            if (typeof cell.v === 'string' && !isNaN(parseFloat(cell.v.replace(/[$,]/g, '')))) {
+                                cell.t = 'n';
+                                cell.v = parseFloat(cell.v.replace(/[$,]/g, ''));
+                            }
+                        }
+                        // 'auto' 則保留 SheetJS 預設
+                    }
+                }
+            }
 
             async function handleConvert() {
                 if (filesToProcess.length === 0) return;
@@ -399,9 +460,32 @@
                 }
             }
 
-            // ... (parseCSV remains same) ...
+            function parseCSV(text) {
+                // 簡單的 CSV 解析，支援逗號分隔
+                // 實際情況可能需要處理引號內的逗號，但此處提供基礎實作
+                return text.split("\n").map(line => {
+                    return line.split(",").map(cell => cell.trim().replace(/^"|"$/g, ""));
+                }).filter(row => row.some(cell => cell !== ""));
+            }
 
-            // ... (cleanData remains same) ...
+            function cleanData(rows) {
+                if (!CONFIG.stripCurrency) return rows;
+
+                return rows.map(row => {
+                    return row.map(cell => {
+                        if (typeof cell === 'string') {
+                            // 移除 $ , + 符號，並處理 .00
+                            // 例如: "+1,234.00" -> "1234"
+                            let cleaned = cell.replace(/[$,+]/g, '');
+                            if (cleaned.endsWith('.00')) {
+                                cleaned = cleaned.substring(0, cleaned.length - 3);
+                            }
+                            return cleaned;
+                        }
+                        return cell;
+                    });
+                });
+            }
 
             async function processIndividual(files) {
                 for (let file of files) {
@@ -498,7 +582,7 @@
                 XLSX.writeFile(wb, filename);
             }
 
-            return { init };
+            return { init, removeFile };
         })();
 
         document.addEventListener("DOMContentLoaded", app.init);
