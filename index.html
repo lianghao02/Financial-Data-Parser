@@ -461,11 +461,31 @@
             }
 
             function parseCSV(text) {
-                // 簡單的 CSV 解析，支援逗號分隔
-                // 實際情況可能需要處理引號內的逗號，但此處提供基礎實作
-                return text.split("\n").map(line => {
-                    return line.split(",").map(cell => cell.trim().replace(/^"|"$/g, ""));
-                }).filter(row => row.some(cell => cell !== ""));
+                // 更完善的 CSV 解析，支援處理引號內的逗號 (例如 "1,234.00")
+                const rows = [];
+                const lines = text.split(/\r?\n/);
+                for (let line of lines) {
+                    if (!line.trim()) continue;
+                    const row = [];
+                    let inQuotes = false;
+                    let currentValue = '';
+                    for (let i = 0; i < line.length; i++) {
+                        const char = line[i];
+                        if (char === '"') {
+                            inQuotes = !inQuotes;
+                        } else if (char === ',' && !inQuotes) {
+                            row.push(currentValue.trim().replace(/^"|"$/g, ""));
+                            currentValue = '';
+                        } else {
+                            currentValue += char;
+                        }
+                    }
+                    row.push(currentValue.trim().replace(/^"|"$/g, ""));
+                    if (row.some(cell => cell !== "")) {
+                        rows.push(row);
+                    }
+                }
+                return rows;
             }
 
             function cleanData(rows) {
@@ -490,7 +510,7 @@
             async function processIndividual(files) {
                 for (let file of files) {
                     const fileData = await readFile(file);
-                    const rows = parseData(fileData);
+                    const rows = await parseData(fileData);
                     const cleanedRows = cleanData(rows);
 
                     const wb = XLSX.utils.book_new();
@@ -509,7 +529,7 @@
                 for (let i = 0; i < files.length; i++) {
                     const file = files[i];
                     const fileData = await readFile(file);
-                    const rows = parseData(fileData);
+                    const rows = await parseData(fileData);
                     const cleanedRows = cleanData(rows);
 
                     const ws = XLSX.utils.aoa_to_sheet(cleanedRows);
@@ -537,27 +557,30 @@
             async function processMergedSingleSheet(files) {
                 const wb = XLSX.utils.book_new();
                 let combinedRows = [];
-                let headerFound = false;
+                let firstFileHeader = [];
 
                 for (let i = 0; i < files.length; i++) {
                     const file = files[i];
                     const fileData = await readFile(file);
-                    const rows = parseData(fileData);
+                    const rows = await parseData(fileData);
 
                     if (rows.length === 0) continue;
 
-                    let dataRows = rows;
+                    let dataRows = [];
 
-                    // 標題列處理
-                    if (!headerFound) {
-                        // 第一個檔案：保留標題
-                        headerFound = true;
+                    if (i === 0) {
+                        // 第一個檔案：保留所有資料包含標題
+                        dataRows = rows;
+                        firstFileHeader = rows[0]; // 儲存第一筆標題列，以便後續比較
                     } else {
-                        // 後續檔案：移除標題 (假設第一列是標題)
-                        // 簡單檢查：如果第一列與 combinedRows[0] 相似，則移除
-                        // 這裡採用簡單策略：總是移除第一列 (若使用者知道有標題)
+                        // 後續檔案：若有相同標題則移除
                         if (rows.length > 0) {
-                            dataRows = rows.slice(1);
+                            // 判斷方式：若第一列資料的長度、內容與 firstFileHeader 相似
+                            if (JSON.stringify(rows[0]) === JSON.stringify(firstFileHeader)) {
+                                dataRows = rows.slice(1);
+                            } else {
+                                dataRows = rows; // 如果標題不同（或無標題），直接合併
+                            }
                         }
                     }
 
