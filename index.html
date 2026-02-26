@@ -11,6 +11,9 @@
     <!-- SheetJS CDN -->
     <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
 
+    <!-- JSZip CDN (jsDelivr to avoid Tracking Prevention issues) -->
+    <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -113,8 +116,8 @@
                                 d="M88.7 223.8L0 375.8 0 96C0 60.7 28.7 32 64 32l117.5 0c17 0 33.3 6.7 45.3 18.7l26.5 26.5c12 12 28.3 18.7 45.3 18.7L416 96c35.3 0 64 28.7 64 64l0 32-336 0c-22.8 0-43.8 12.1-55.3 31.8zm27.6 16.1C122.1 230 132.6 224 144 224l400 0c11.5 0 22 6.1 27.7 16.1s5.7 22.2-.1 32.1l-112 192C453.9 474 443.4 480 432 480L32 480c-11.5 0-22-6.1-27.7-16.1s-5.7-22.2 .1-32.1l112-192z" />
                         </svg>
                     </div>
-                    <p class="text-gray-500 font-medium">拖放檔案至此，或點擊選擇 (.csv, .xlsx, .xls)</p>
-                    <input type="file" id="file-input" multiple accept=".csv, .xlsx, .xls" hidden>
+                    <p class="text-gray-500 font-medium">拖放檔案至此，或點擊選擇 (.csv, .xlsx, .xls, .zip)</p>
+                    <input type="file" id="file-input" multiple accept=".csv, .xlsx, .xls, .zip" hidden>
                 </div>
                 <!-- File List -->
                 <div id="file-list" class="file-list mt-5 max-h-[150px] overflow-y-auto"></div>
@@ -162,7 +165,7 @@
             </div>
 
             <footer class="mt-10 text-center text-slate-500 text-sm pt-5 border-t border-slate-200">
-                <p>&copy; 2025 CSV to Excel Tool. (FDP v1.2.0)</p>
+                <p>&copy; 2025 CSV to Excel Tool. (FDP v1.3.0)</p>
             </footer>
         </div>
     </main>
@@ -205,6 +208,14 @@
             <p class="text-xs text-gray-500 mt-1">選填，預設為 01, 02...</p>
         </div>
 
+        <!-- Setting: Custom Filename -->
+        <div class="setting-item">
+            <label class="block text-sm font-semibold text-gray-700 mb-2">自訂輸出檔名</label>
+            <input type="text" id="setting-custom-filename" placeholder="選填，例如: 測試報表"
+                class="w-full p-2 border border-gray-300 rounded-md focus:border-primary focus:ring-1 focus:ring-primary outline-none text-sm">
+            <p class="text-xs text-gray-500 mt-1">選填，若有填寫將以此命名匯出檔案</p>
+        </div>
+
         <!-- Setting: Theme Color -->
         <div class="setting-item">
             <label class="block text-sm font-semibold text-gray-700 mb-2">主題顏色</label>
@@ -224,7 +235,7 @@
         const app = (function () {
             // 私有變數
             let dropZone, fileInput, fileListEl, convertBtn, loadingOverlay;
-            let settingCellType, settingStripCurrency, settingSheetPrefix, settingThemeColor, themeColorLabel;
+            let settingCellType, settingStripCurrency, settingSheetPrefix, settingThemeColor, themeColorLabel, settingCustomFilename;
             let filesToProcess = [];
 
             // 配置 (預設值由 HTML 結構決定，此處為狀態同步)
@@ -232,7 +243,8 @@
                 cellType: 'text',
                 stripCurrency: true,
                 sheetPrefix: '',
-                themeColor: '#1E3A8A'
+                themeColor: '#1E3A8A',
+                customFilename: ''
             };
 
             function init() {
@@ -249,6 +261,7 @@
                 settingSheetPrefix = document.getElementById("setting-sheet-prefix");
                 settingThemeColor = document.getElementById("setting-theme-color");
                 themeColorLabel = document.getElementById("theme-color-label");
+                settingCustomFilename = document.getElementById("setting-custom-filename");
 
                 setupEventListeners();
                 setupSettingsListeners();
@@ -311,6 +324,11 @@
                     document.documentElement.style.setProperty('--color-primary-hover', adjustColorOpacity(color, 0.9));
                     CONFIG.themeColor = color;
                 });
+
+                // 自訂檔名
+                settingCustomFilename.addEventListener("input", (e) => {
+                    CONFIG.customFilename = e.target.value.trim();
+                });
             }
 
             // 輔助函式：調整顏色 (此處僅為 placeholder，實際可使用庫或簡單算法)
@@ -319,17 +337,74 @@
                 return hex;
             }
 
-            function handleFiles(files) {
+            async function handleFiles(files) {
+                let hasZip = false;
                 for (let file of files) {
-                    const ext = file.name.split('.').pop().toLowerCase();
-                    if (['csv', 'xlsx', 'xls'].includes(ext)) {
-                        if (!filesToProcess.some(f => f.name === file.name && f.size === file.size)) {
-                            filesToProcess.push(file);
-                        }
+                    if (file.name.toLowerCase().endsWith('.zip')) {
+                        hasZip = true;
+                        break;
                     }
                 }
-                updateFileList();
-                updateConvertBtn();
+
+                if (hasZip) {
+                    loadingOverlay.style.display = 'flex';
+                    // 讓 UI 更新有機會渲染
+                    await new Promise(resolve => setTimeout(resolve, 50));
+                }
+
+                try {
+                    for (let file of files) {
+                        const ext = file.name.split('.').pop().toLowerCase();
+                        if (['csv', 'xlsx', 'xls'].includes(ext)) {
+                            if (!filesToProcess.some(f => f.name === file.name && f.size === file.size)) {
+                                filesToProcess.push(file);
+                            }
+                        } else if (ext === 'zip') {
+                            await processZipFile(file);
+                        }
+                    }
+                } catch (err) {
+                    console.error("解壓縮發生錯誤:", err);
+                    alert("⚠️ 處理檔案時發生錯誤：" + err.message);
+                } finally {
+                    if (hasZip) {
+                        loadingOverlay.style.display = 'none';
+                    }
+                    updateFileList();
+                    updateConvertBtn();
+                }
+            }
+
+            async function processZipFile(fileOrBlob) {
+                const zip = new JSZip();
+                const contents = await zip.loadAsync(fileOrBlob);
+
+                for (const filename of Object.keys(contents.files)) {
+                    const zipEntry = contents.files[filename];
+                    // Skip directories
+                    if (zipEntry.dir) continue;
+
+                    // Skip hidden/macOS files
+                    if (filename.includes('__MACOSX/') || filename.split('/').pop().startsWith('.')) continue;
+
+                    const ext = filename.split('.').pop().toLowerCase();
+                    if (['csv', 'xlsx', 'xls'].includes(ext)) {
+                        const blob = await zipEntry.async("blob");
+                        // Extract actual file name without path
+                        const actualName = filename.split('/').pop();
+                        const extractedFile = new File([blob], actualName, { type: blob.type || "application/octet-stream" });
+
+                        // We check uniqueness based on size and name.
+                        if (!filesToProcess.some(f => f.name === extractedFile.name && f.size === extractedFile.size)) {
+                            filesToProcess.push(extractedFile);
+                        }
+                    } else if (ext === 'zip') {
+                        // Recursive unzip
+                        const blob = await zipEntry.async("blob");
+                        // Give it the original file name so the recursive depth logic doesn't break. 
+                        await processZipFile(blob);
+                    }
+                }
             }
 
             function updateFileList() {
@@ -494,12 +569,10 @@
                 return rows.map(row => {
                     return row.map(cell => {
                         if (typeof cell === 'string') {
-                            // 移除 $ , + 符號，並處理 .00
+                            // 移除 $ , + 符號，並處理 .00 或 .000
                             // 例如: "+1,234.00" -> "1234"
                             let cleaned = cell.replace(/[$,+]/g, '');
-                            if (cleaned.endsWith('.00')) {
-                                cleaned = cleaned.substring(0, cleaned.length - 3);
-                            }
+                            cleaned = cleaned.replace(/\.0+$/, '');
                             return cleaned;
                         }
                         return cell;
@@ -508,7 +581,8 @@
             }
 
             async function processIndividual(files) {
-                for (let file of files) {
+                for (let i = 0; i < files.length; i++) {
+                    const file = files[i];
                     const fileData = await readFile(file);
                     const rows = await parseData(fileData);
                     const cleanedRows = cleanData(rows);
@@ -519,7 +593,12 @@
                     applyExcelCellFormatting(ws);
 
                     XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
-                    XLSX.writeFile(wb, file.name.replace(/\.(csv|xlsx|xls)$/i, ".xlsx"));
+
+                    let outName = file.name.replace(/\.(csv|xlsx|xls)$/i, ".xlsx");
+                    if (CONFIG.customFilename) {
+                        outName = `${CONFIG.customFilename}_${i + 1}.xlsx`;
+                    }
+                    XLSX.writeFile(wb, outName);
                 }
             }
 
@@ -595,12 +674,17 @@
             }
 
             function saveMergedFile(wb) {
-                const now = new Date();
-                const month = (now.getMonth() + 1).toString().padStart(2, "0");
-                const date = now.getDate().toString().padStart(2, "0");
-                const hours = now.getHours().toString().padStart(2, "0");
-                const minutes = now.getMinutes().toString().padStart(2, "0");
-                const filename = `${month}${date}_${hours}${minutes}合併金流.xlsx`;
+                let filename = "";
+                if (CONFIG.customFilename) {
+                    filename = `${CONFIG.customFilename}.xlsx`;
+                } else {
+                    const now = new Date();
+                    const month = (now.getMonth() + 1).toString().padStart(2, "0");
+                    const date = now.getDate().toString().padStart(2, "0");
+                    const hours = now.getHours().toString().padStart(2, "0");
+                    const minutes = now.getMinutes().toString().padStart(2, "0");
+                    filename = `${month}${date}_${hours}${minutes}合併金流.xlsx`;
+                }
 
                 XLSX.writeFile(wb, filename);
             }
