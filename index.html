@@ -165,7 +165,7 @@
             </div>
 
             <footer class="mt-10 text-center text-slate-500 text-sm pt-5 border-t border-slate-200">
-                <p>&copy; 2025 CSV to Excel Tool. (FDP v1.3.0)</p>
+                <p>&copy; 2025 CSV to Excel Tool. (FDP v1.4.0)</p>
             </footer>
         </div>
     </main>
@@ -280,11 +280,25 @@
                     dropZone.classList.add("border-gray-200", "bg-[#fafafa]");
                 });
 
-                dropZone.addEventListener("drop", (e) => {
+                dropZone.addEventListener("drop", async (e) => {
                     e.preventDefault();
                     dropZone.classList.remove("border-accent", "bg-[#eef2ff]");
                     dropZone.classList.add("border-gray-200", "bg-[#fafafa]");
-                    handleFiles(e.dataTransfer.files);
+                    
+                    if (e.dataTransfer.items) {
+                        try {
+                            loadingOverlay.style.display = 'flex';
+                            const files = await getAllFileEntries(e.dataTransfer.items);
+                            await handleFiles(files);
+                        } catch (err) {
+                            console.error("⚠️ 資料夾掃描發生意外:", err);
+                            alert("⚠️ 資料夾掃描發生錯誤：" + err.message);
+                        } finally {
+                            loadingOverlay.style.display = 'none';
+                        }
+                    } else {
+                        handleFiles(e.dataTransfer.files);
+                    }
                 });
 
                 dropZone.addEventListener("click", () => {
@@ -337,6 +351,61 @@
                 return hex;
             }
 
+            // 遞迴讀取 DataTransferItem 或 FileSystemEntry，支援資料夾拖曳
+            async function scanFiles(entry) {
+                return new Promise((resolve) => {
+                    if (entry.isFile) {
+                        entry.file((file) => {
+                            resolve([file]);
+                        }, (err) => {
+                            console.warn("⚠️ 讀取實體檔案失敗:", err);
+                            resolve([]);
+                        });
+                    } else if (entry.isDirectory) {
+                        const dirReader = entry.createReader();
+                        let allEntries = [];
+
+                        function readNext() {
+                            dirReader.readEntries(async (entries) => {
+                                if (entries.length > 0) {
+                                    for (let i = 0; i < entries.length; i++) {
+                                        const subFiles = await scanFiles(entries[i]);
+                                        allEntries.push(...subFiles);
+                                    }
+                                    readNext();
+                                } else {
+                                    resolve(allEntries);
+                                }
+                            }, (err) => {
+                                console.warn("⚠️ 讀取資料夾失敗:", err);
+                                resolve(allEntries);
+                            });
+                        }
+                        readNext();
+                    } else {
+                        resolve([]);
+                    }
+                });
+            }
+
+            async function getAllFileEntries(items) {
+                let allFiles = [];
+                for (let i = 0; i < items.length; i++) {
+                    const item = items[i];
+                    if (item.kind === 'file') {
+                        const entry = item.webkitGetAsEntry ? item.webkitGetAsEntry() : (item.getAsEntry ? item.getAsEntry() : null);
+                        if (entry) {
+                            const files = await scanFiles(entry);
+                            allFiles.push(...files);
+                        } else {
+                            const file = item.getAsFile();
+                            if (file) allFiles.push(file);
+                        }
+                    }
+                }
+                return allFiles;
+            }
+
             async function handleFiles(files) {
                 let hasZip = false;
                 for (let file of files) {
@@ -352,8 +421,8 @@
                     await new Promise(resolve => setTimeout(resolve, 50));
                 }
 
-                try {
-                    for (let file of files) {
+                for (let file of files) {
+                    try {
                         const ext = file.name.split('.').pop().toLowerCase();
                         if (['csv', 'xlsx', 'xls'].includes(ext)) {
                             if (!filesToProcess.some(f => f.name === file.name && f.size === file.size)) {
@@ -362,48 +431,55 @@
                         } else if (ext === 'zip') {
                             await processZipFile(file);
                         }
+                    } catch (err) {
+                        console.warn(`⚠️ 處理檔案 ${file.name} 時發生錯誤:`, err);
                     }
-                } catch (err) {
-                    console.error("解壓縮發生錯誤:", err);
-                    alert("⚠️ 處理檔案時發生錯誤：" + err.message);
-                } finally {
-                    if (hasZip) {
-                        loadingOverlay.style.display = 'none';
-                    }
-                    updateFileList();
-                    updateConvertBtn();
                 }
+
+                if (hasZip) {
+                    loadingOverlay.style.display = 'none';
+                }
+                updateFileList();
+                updateConvertBtn();
             }
 
             async function processZipFile(fileOrBlob) {
-                const zip = new JSZip();
-                const contents = await zip.loadAsync(fileOrBlob);
+                try {
+                    const zip = new JSZip();
+                    const contents = await zip.loadAsync(fileOrBlob);
 
-                for (const filename of Object.keys(contents.files)) {
-                    const zipEntry = contents.files[filename];
-                    // Skip directories
-                    if (zipEntry.dir) continue;
+                    for (const filename of Object.keys(contents.files)) {
+                        try {
+                            const zipEntry = contents.files[filename];
+                            // Skip directories
+                            if (zipEntry.dir) continue;
 
-                    // Skip hidden/macOS files
-                    if (filename.includes('__MACOSX/') || filename.split('/').pop().startsWith('.')) continue;
+                            // Skip hidden/macOS files
+                            if (filename.includes('__MACOSX/') || filename.split('/').pop().startsWith('.')) continue;
 
-                    const ext = filename.split('.').pop().toLowerCase();
-                    if (['csv', 'xlsx', 'xls'].includes(ext)) {
-                        const blob = await zipEntry.async("blob");
-                        // Extract actual file name without path
-                        const actualName = filename.split('/').pop();
-                        const extractedFile = new File([blob], actualName, { type: blob.type || "application/octet-stream" });
+                            const ext = filename.split('.').pop().toLowerCase();
+                            if (['csv', 'xlsx', 'xls'].includes(ext)) {
+                                const blob = await zipEntry.async("blob");
+                                // Extract actual file name without path
+                                const actualName = filename.split('/').pop();
+                                const extractedFile = new File([blob], actualName, { type: blob.type || "application/octet-stream" });
 
-                        // We check uniqueness based on size and name.
-                        if (!filesToProcess.some(f => f.name === extractedFile.name && f.size === extractedFile.size)) {
-                            filesToProcess.push(extractedFile);
+                                // We check uniqueness based on size and name.
+                                if (!filesToProcess.some(f => f.name === extractedFile.name && f.size === extractedFile.size)) {
+                                    filesToProcess.push(extractedFile);
+                                }
+                            } else if (ext === 'zip') {
+                                // Recursive unzip
+                                const blob = await zipEntry.async("blob");
+                                // Give it the original file name so the recursive depth logic doesn't break. 
+                                await processZipFile(blob);
+                            }
+                        } catch (innerErr) {
+                            console.warn(`⚠️ 解析 ZIP 內檔案 [${filename}] 時發生錯誤:`, innerErr);
                         }
-                    } else if (ext === 'zip') {
-                        // Recursive unzip
-                        const blob = await zipEntry.async("blob");
-                        // Give it the original file name so the recursive depth logic doesn't break. 
-                        await processZipFile(blob);
                     }
+                } catch (err) {
+                    console.error("⚠️ 讀取 ZIP 檔案本身失敗:", err);
                 }
             }
 
@@ -449,6 +525,7 @@
             }
 
             function applyExcelCellFormatting(ws) {
+                if (!ws || !ws['!ref']) return;
                 const range = XLSX.utils.decode_range(ws['!ref']);
                 for (let R = range.s.r; R <= range.e.r; ++R) {
                     for (let C = range.s.c; C <= range.e.c; ++C) {
@@ -582,23 +659,27 @@
 
             async function processIndividual(files) {
                 for (let i = 0; i < files.length; i++) {
-                    const file = files[i];
-                    const fileData = await readFile(file);
-                    const rows = await parseData(fileData);
-                    const cleanedRows = cleanData(rows);
+                    try {
+                        const file = files[i];
+                        const fileData = await readFile(file);
+                        const rows = await parseData(fileData);
+                        const cleanedRows = cleanData(rows);
 
-                    const wb = XLSX.utils.book_new();
-                    const ws = XLSX.utils.aoa_to_sheet(cleanedRows);
+                        const wb = XLSX.utils.book_new();
+                        const ws = XLSX.utils.aoa_to_sheet(cleanedRows);
 
-                    applyExcelCellFormatting(ws);
+                        applyExcelCellFormatting(ws);
 
-                    XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
+                        XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
 
-                    let outName = file.name.replace(/\.(csv|xlsx|xls)$/i, ".xlsx");
-                    if (CONFIG.customFilename) {
-                        outName = `${CONFIG.customFilename}_${i + 1}.xlsx`;
+                        let outName = file.name.replace(/\.(csv|xlsx|xls)$/i, ".xlsx");
+                        if (CONFIG.customFilename) {
+                            outName = `${CONFIG.customFilename}_${i + 1}.xlsx`;
+                        }
+                        XLSX.writeFile(wb, outName);
+                    } catch (err) {
+                        console.warn(`⚠️ 產出第 ${i+1} 個檔案時發生錯誤:`, err);
                     }
-                    XLSX.writeFile(wb, outName);
                 }
             }
 
@@ -606,29 +687,33 @@
                 const wb = XLSX.utils.book_new();
 
                 for (let i = 0; i < files.length; i++) {
-                    const file = files[i];
-                    const fileData = await readFile(file);
-                    const rows = await parseData(fileData);
-                    const cleanedRows = cleanData(rows);
+                    try {
+                        const file = files[i];
+                        const fileData = await readFile(file);
+                        const rows = await parseData(fileData);
+                        const cleanedRows = cleanData(rows);
 
-                    const ws = XLSX.utils.aoa_to_sheet(cleanedRows);
+                        const ws = XLSX.utils.aoa_to_sheet(cleanedRows);
 
-                    applyExcelCellFormatting(ws);
+                        applyExcelCellFormatting(ws);
 
-                    let sheetName = (i + 1).toString().padStart(2, "0");
-                    if (CONFIG.sheetPrefix) {
-                        sheetName = CONFIG.sheetPrefix + sheetName;
+                        let sheetName = (i + 1).toString().padStart(2, "0");
+                        if (CONFIG.sheetPrefix) {
+                            sheetName = CONFIG.sheetPrefix + sheetName;
+                        }
+
+                        // Sheet 名稱長度限制 31 字元
+                        if (sheetName.length > 31) sheetName = sheetName.substring(0, 31);
+
+                        // 避免重複 Sheet 名稱
+                        if (wb.SheetNames.includes(sheetName)) {
+                            sheetName = sheetName + "_" + i;
+                        }
+
+                        XLSX.utils.book_append_sheet(wb, ws, sheetName);
+                    } catch (err) {
+                        console.warn(`⚠️ 合併分頁 ${i+1} 時發生錯誤:`, err);
                     }
-
-                    // Sheet 名稱長度限制 31 字元
-                    if (sheetName.length > 31) sheetName = sheetName.substring(0, 31);
-
-                    // 避免重複 Sheet 名稱
-                    if (wb.SheetNames.includes(sheetName)) {
-                        sheetName = sheetName + "_" + i;
-                    }
-
-                    XLSX.utils.book_append_sheet(wb, ws, sheetName);
                 }
                 saveMergedFile(wb);
             }
@@ -639,32 +724,36 @@
                 let firstFileHeader = [];
 
                 for (let i = 0; i < files.length; i++) {
-                    const file = files[i];
-                    const fileData = await readFile(file);
-                    const rows = await parseData(fileData);
+                    try {
+                        const file = files[i];
+                        const fileData = await readFile(file);
+                        const rows = await parseData(fileData);
 
-                    if (rows.length === 0) continue;
+                        if (rows.length === 0) continue;
 
-                    let dataRows = [];
+                        let dataRows = [];
 
-                    if (i === 0) {
-                        // 第一個檔案：保留所有資料包含標題
-                        dataRows = rows;
-                        firstFileHeader = rows[0]; // 儲存第一筆標題列，以便後續比較
-                    } else {
-                        // 後續檔案：若有相同標題則移除
-                        if (rows.length > 0) {
-                            // 判斷方式：若第一列資料的長度、內容與 firstFileHeader 相似
-                            if (JSON.stringify(rows[0]) === JSON.stringify(firstFileHeader)) {
-                                dataRows = rows.slice(1);
-                            } else {
-                                dataRows = rows; // 如果標題不同（或無標題），直接合併
+                        if (i === 0) {
+                            // 第一個檔案：保留所有資料包含標題
+                            dataRows = rows;
+                            firstFileHeader = rows[0]; // 儲存第一筆標題列，以便後續比較
+                        } else {
+                            // 後續檔案：若有相同標題則移除
+                            if (rows.length > 0) {
+                                // 判斷方式：若第一列資料的長度、內容與 firstFileHeader 相似
+                                if (JSON.stringify(rows[0]) === JSON.stringify(firstFileHeader)) {
+                                    dataRows = rows.slice(1);
+                                } else {
+                                    dataRows = rows; // 如果標題不同（或無標題），直接合併
+                                }
                             }
                         }
-                    }
 
-                    const cleanedRows = cleanData(dataRows);
-                    combinedRows = combinedRows.concat(cleanedRows);
+                        const cleanedRows = cleanData(dataRows);
+                        combinedRows = combinedRows.concat(cleanedRows);
+                    } catch (err) {
+                        console.warn(`⚠️ 合併資料棧第 ${i+1} 檔時發生錯誤:`, err);
+                    }
                 }
 
                 const ws = XLSX.utils.aoa_to_sheet(combinedRows);
