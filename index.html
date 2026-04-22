@@ -8,6 +8,9 @@
     <meta name="author" content="LiangHao">
     <title>CSV 轉 Excel 工具 | LiangHao Dev</title>
 
+    <!-- Favicon (Emoji) -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📊</text></svg>">
+
     <!-- SheetJS CDN -->
     <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
 
@@ -119,8 +122,14 @@
                     <p class="text-gray-500 font-medium">拖放檔案至此，或點擊選擇 (.csv, .xlsx, .xls, .zip)</p>
                     <input type="file" id="file-input" multiple accept=".csv, .xlsx, .xls, .zip" hidden>
                 </div>
-                <!-- File List -->
-                <div id="file-list" class="file-list mt-5 max-h-[150px] overflow-y-auto"></div>
+                <!-- File List Area -->
+                <div class="file-list-container mt-6">
+                    <div class="flex justify-between items-center mb-2 px-1">
+                        <h2 id="file-list-title" class="text-sm font-bold text-gray-700 hidden">待處理檔案</h2>
+                        <button id="clear-all-btn" class="text-xs text-danger hover:underline font-medium hidden">一鍵清除</button>
+                    </div>
+                    <div id="file-list" class="file-list max-h-[150px] overflow-y-auto border-0 border-gray-100 rounded-lg bg-transparent"></div>
+                </div>
             </div>
 
             <div class="options-section mt-8">
@@ -236,6 +245,7 @@
             // 私有變數
             let dropZone, fileInput, fileListEl, convertBtn, loadingOverlay;
             let settingCellType, settingStripCurrency, settingSheetPrefix, settingThemeColor, themeColorLabel, settingCustomFilename;
+            let clearAllBtn, fileListTitle;
             let filesToProcess = [];
 
             // 配置 (預設值由 HTML 結構決定，此處為狀態同步)
@@ -254,6 +264,8 @@
                 fileListEl = document.getElementById("file-list");
                 convertBtn = document.getElementById("convert-btn");
                 loadingOverlay = document.getElementById("loading-overlay");
+                clearAllBtn = document.getElementById("clear-all-btn");
+                fileListTitle = document.getElementById("file-list-title");
 
                 // 設定面板元素
                 settingCellType = document.getElementById("setting-cell-type");
@@ -280,11 +292,33 @@
                     dropZone.classList.add("border-gray-200", "bg-[#fafafa]");
                 });
 
-                dropZone.addEventListener("drop", (e) => {
+                dropZone.addEventListener("drop", async (e) => {
                     e.preventDefault();
                     dropZone.classList.remove("border-accent", "bg-[#eef2ff]");
                     dropZone.classList.add("border-gray-200", "bg-[#fafafa]");
-                    handleFiles(e.dataTransfer.files);
+                    
+                    const items = e.dataTransfer.items;
+                    if (items) {
+                        const fileList = [];
+                        const promises = [];
+                        for (let i = 0; i < items.length; i++) {
+                            const entry = items[i].webkitGetAsEntry();
+                            if (entry) {
+                                promises.push(traverseEntry(entry, fileList));
+                            }
+                        }
+                        
+                        // 如果有項目，顯示載入中
+                        if (items.length > 0) {
+                            loadingOverlay.style.display = 'flex';
+                        }
+                        
+                        await Promise.all(promises);
+                        loadingOverlay.style.display = 'none';
+                        handleFiles(fileList);
+                    } else {
+                        handleFiles(Array.from(e.dataTransfer.files));
+                    }
                 });
 
                 dropZone.addEventListener("click", () => {
@@ -292,11 +326,37 @@
                 });
 
                 fileInput.addEventListener("change", (e) => {
-                    handleFiles(e.target.files);
+                    handleFiles(Array.from(e.target.files));
                     fileInput.value = "";
                 });
 
                 convertBtn.addEventListener("click", handleConvert);
+                
+                clearAllBtn.addEventListener("click", () => {
+                    filesToProcess = [];
+                    updateFileList();
+                    updateConvertBtn();
+                });
+            }
+
+            // 遞迴讀取資料夾項目
+            async function traverseEntry(entry, fileList) {
+                if (entry.isFile) {
+                    const file = await new Promise((resolve) => entry.file(resolve));
+                    fileList.push(file);
+                } else if (entry.isDirectory) {
+                    const reader = entry.createReader();
+                    const readAllEntries = async () => {
+                        const entries = await new Promise((resolve) => reader.readEntries(resolve));
+                        if (entries.length > 0) {
+                            for (const childEntry of entries) {
+                                await traverseEntry(childEntry, fileList);
+                            }
+                            await readAllEntries();
+                        }
+                    };
+                    await readAllEntries();
+                }
             }
 
             function setupSettingsListeners() {
@@ -364,12 +424,10 @@
                         }
                     }
                 } catch (err) {
-                    console.error("解壓縮發生錯誤:", err);
+                    console.error("處理檔案發生錯誤:", err);
                     alert("⚠️ 處理檔案時發生錯誤：" + err.message);
                 } finally {
-                    if (hasZip) {
-                        loadingOverlay.style.display = 'none';
-                    }
+                    loadingOverlay.style.display = 'none';
                     updateFileList();
                     updateConvertBtn();
                 }
@@ -409,6 +467,15 @@
 
             function updateFileList() {
                 fileListEl.innerHTML = "";
+                
+                if (filesToProcess.length > 0) {
+                    clearAllBtn.classList.remove("hidden");
+                    fileListTitle.classList.remove("hidden");
+                } else {
+                    clearAllBtn.classList.add("hidden");
+                    fileListTitle.classList.add("hidden");
+                }
+
                 filesToProcess.forEach((file, index) => {
                     const item = document.createElement("div");
                     item.className = "file-item flex justify-between items-center p-3 mb-2 bg-gray-50 rounded-lg border border-gray-100 animate-fadeIn";
