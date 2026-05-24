@@ -84,7 +84,7 @@
     </style>
 </head>
 
-<body class="bg-bg text-text font-sans min-h-screen flex flex-col md:flex-row p-5 gap-5">
+<body class="bg-gradient-to-br from-blue-50 to-indigo-50 text-slate-800 font-sans min-h-screen flex flex-col md:flex-row p-4 md:p-6 gap-6">
 
     <!-- Loading Overlay -->
     <div id="loading-overlay">
@@ -95,11 +95,12 @@
     </div>
 
     <!-- Main Content Area -->
-    <main class="flex-1 flex justify-center items-center">
+    <main class="flex-1 flex justify-center items-start pt-2 md:pt-0">
         <div
-            class="container w-full max-w-[800px] bg-white rounded-xl shadow-[0_10px_25px_-5px_rgba(0,0,0,0.1),0_8px_10px_-6px_rgba(0,0,0,0.1)] p-6 md:p-10 transition-transform duration-300">
-            <header class="text-center mb-8">
-                <h1 class="text-3xl font-bold text-primary mb-2 flex justify-center items-center gap-2">
+            class="container w-full max-w-[850px] bg-white/80 backdrop-blur-xl border border-white/60 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-6 md:p-10 transition-transform duration-300 relative overflow-hidden">
+            <div class="absolute top-0 right-0 -mr-20 -mt-20 w-64 h-64 bg-blue-400/10 rounded-full blur-3xl pointer-events-none"></div>
+            <header class="text-center mb-8 relative z-10">
+                <h1 class="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-700 to-indigo-700 mb-2 flex justify-center items-center gap-3">
                     <svg class="w-[1em] h-[1em] fill-current" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
                         <path
                             d="M0 64C0 28.7 28.7 0 64 0L224 0l0 128c0 17.7 14.3 32 32 32l128 0 0 144-208 0c-35.3 0-64 28.7-64 64l0 144-48 0c-35.3 0-64-28.7-64-64L0 64zm384 64l-128 0L256 0 384 128zM200 352l16 0c22.1 0 40 17.9 40 40l0 8c0 8.8-7.2 16-16 16s-16-7.2-16-16l0-8c0-4.4-3.6-8-8-8l-16 0c-4.4 0-8 3.6-8 8l0 80c0 4.4 3.6 8 8 8l16 0c4.4 0 8-3.6 8-8l0-8c0-8.8 7.2-16 16-16s16 7.2 16 16l0 8c0 22.1-17.9 40-40 40l-16 0c-22.1 0-40-17.9-40-40l0-80c0-22.1 17.9-40 40-40zm133.1 0l34.9 0c8.8 0 16 7.2 16 16s-7.2 16-16 16l-34.9 0c-7.2 0-13.1 5.9-13.1 13.1c0 5.2 3 9.9 7.8 12l37.4 16.6c16.3 7.2 26.8 23.4 26.8 41.2c0 24.9-20.2 45.1-45.1 45.1L304 512c-8.8 0-16-7.2-16-16s7.2-16 16-16l42.9 0c7.2 0 13.1-5.9 13.1-13.1c0-5.2-3-9.9-7.8-12l-37.4-16.6c-16.3-7.2-26.8-23.4-26.8-41.2c0-24.9 20.2-45.1 45.1-45.1zm98.9 0c8.8 0 16 7.2 16 16l0 31.6c0 23 5.5 45.6 16 66c10.5-20.3 16-42.9 16-66l0-31.6c0-8.8 7.2-16 16-16s16 7.2 16 16l0 31.6c0 34.7-10.3 68.7-29.6 97.6l-5.1 7.7c-3 4.5-8 7.1-13.3 7.1s-10.3-2.7-13.3-7.1l-5.1-7.7c-19.3-28.9-29.6-62.9-29.6-97.6l0-31.6c0-8.8 7.2-16 16-16z" />
@@ -112,8 +113,8 @@
             <div class="upload-section">
                 <!-- Drop Zone -->
                 <div id="drop-zone"
-                    class="drop-zone border-2 border-dashed border-gray-200 rounded-xl py-10 px-5 text-center cursor-pointer transition-all duration-300 bg-[#fafafa] hover:border-accent hover:bg-[#eef2ff] group">
-                    <div class="icon text-5xl mb-4 text-[#333333] group-hover:text-primary transition-colors">
+                    class="drop-zone border-2 border-dashed border-indigo-200/80 rounded-2xl py-12 px-5 text-center cursor-pointer transition-all duration-300 bg-white/50 hover:border-accent hover:bg-blue-50/50 hover:shadow-inner group relative">
+                    <div class="icon text-5xl mb-4 text-slate-400 group-hover:text-accent group-hover:scale-110 transition-all duration-300">
                         <svg class="w-[1em] h-[1em] fill-current inline-block" xmlns="http://www.w3.org/2000/svg"
                             viewBox="0 0 576 512">
                             <path
@@ -133,45 +134,54 @@
                 </div>
             </div>
 
-            <div class="options-section mt-8">
-                <h2 class="text-lg font-bold mb-4 text-primary">匯出模式</h2>
-                <div class="radio-group flex flex-col gap-3">
-                    <label
-                        class="radio-option flex items-center cursor-pointer p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-all duration-200 select-none">
-                        <input type="radio" name="export-mode" value="individual" checked class="hidden peer">
-                        <div
-                            class="radio-custom w-5 h-5 border-2 border-gray-300 rounded-full mr-3 relative peer-checked:border-accent peer-checked:after:content-[''] peer-checked:after:absolute peer-checked:after:top-1/2 peer-checked:after:left-1/2 peer-checked:after:-translate-x-1/2 peer-checked:after:-translate-y-1/2 peer-checked:after:w-2.5 peer-checked:after:h-2.5 peer-checked:after:bg-accent peer-checked:after:rounded-full transition-all">
+            <div class="options-section mt-8 relative z-10">
+                <h2 class="text-lg font-bold mb-4 text-slate-700 flex items-center gap-2">
+                    <svg class="w-5 h-5 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2"></path></svg>
+                    匯出模式
+                </h2>
+                <div class="radio-group grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <!-- Option 1 -->
+                    <label class="relative cursor-pointer group">
+                        <input type="radio" name="export-mode" value="individual" checked class="peer sr-only">
+                        <div class="h-full p-4 border-2 border-transparent bg-white/60 rounded-2xl transition-all duration-300 shadow-sm hover:shadow-md hover:-translate-y-1 peer-checked:border-accent peer-checked:bg-blue-50/50 peer-checked:shadow-accent/20 flex flex-col items-center text-center gap-2 relative overflow-hidden">
+                            <div class="absolute inset-0 bg-gradient-to-b from-white/40 to-transparent pointer-events-none"></div>
+                            <div class="w-12 h-12 rounded-full bg-blue-100/50 text-blue-500 flex items-center justify-center mb-1 group-hover:scale-110 transition-transform peer-checked:bg-accent peer-checked:text-white shadow-sm z-10">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                            </div>
+                            <span class="font-bold text-slate-700 peer-checked:text-accent z-10">個別轉檔</span>
+                            <span class="text-[0.8rem] text-slate-500 font-medium leading-snug z-10">保留原始檔名<br>一對一產出</span>
                         </div>
-                        <span
-                            class="label-text text-gray-600 font-medium peer-checked:text-accent peer-checked:font-semibold">個別轉檔
-                            (保留原始檔名)</span>
                     </label>
-                    <label
-                        class="radio-option flex items-center cursor-pointer p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-all duration-200 select-none">
-                        <input type="radio" name="export-mode" value="merged_sheets" class="hidden peer">
-                        <div
-                            class="radio-custom w-5 h-5 border-2 border-gray-300 rounded-full mr-3 relative peer-checked:border-accent peer-checked:after:content-[''] peer-checked:after:absolute peer-checked:after:top-1/2 peer-checked:after:left-1/2 peer-checked:after:-translate-x-1/2 peer-checked:after:-translate-y-1/2 peer-checked:after:w-2.5 peer-checked:after:h-2.5 peer-checked:after:bg-accent peer-checked:after:rounded-full transition-all">
+                    <!-- Option 2 -->
+                    <label class="relative cursor-pointer group">
+                        <input type="radio" name="export-mode" value="merged_sheets" class="peer sr-only">
+                        <div class="h-full p-4 border-2 border-transparent bg-white/60 rounded-2xl transition-all duration-300 shadow-sm hover:shadow-md hover:-translate-y-1 peer-checked:border-accent peer-checked:bg-blue-50/50 peer-checked:shadow-accent/20 flex flex-col items-center text-center gap-2 relative overflow-hidden">
+                            <div class="absolute inset-0 bg-gradient-to-b from-white/40 to-transparent pointer-events-none"></div>
+                            <div class="w-12 h-12 rounded-full bg-blue-100/50 text-blue-500 flex items-center justify-center mb-1 group-hover:scale-110 transition-transform peer-checked:bg-accent peer-checked:text-white shadow-sm z-10">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+                            </div>
+                            <span class="font-bold text-slate-700 peer-checked:text-accent z-10">多檔合併</span>
+                            <span class="text-[0.8rem] text-slate-500 font-medium leading-snug z-10">產生單一 Excel<br>依檔名分子頁</span>
                         </div>
-                        <span
-                            class="label-text text-gray-600 font-medium peer-checked:text-accent peer-checked:font-semibold">多檔合併
-                            (每個檔案一個分頁)</span>
                     </label>
-                    <label
-                        class="radio-option flex items-center cursor-pointer p-3 border border-gray-200 rounded-lg hover:bg-gray-50 transition-all duration-200 select-none">
-                        <input type="radio" name="export-mode" value="merged_single_sheet" class="hidden peer">
-                        <div
-                            class="radio-custom w-5 h-5 border-2 border-gray-300 rounded-full mr-3 relative peer-checked:border-accent peer-checked:after:content-[''] peer-checked:after:absolute peer-checked:after:top-1/2 peer-checked:after:left-1/2 peer-checked:after:-translate-x-1/2 peer-checked:after:-translate-y-1/2 peer-checked:after:w-2.5 peer-checked:after:h-2.5 peer-checked:after:bg-accent peer-checked:after:rounded-full transition-all">
+                    <!-- Option 3 -->
+                    <label class="relative cursor-pointer group">
+                        <input type="radio" name="export-mode" value="merged_single_sheet" class="peer sr-only">
+                        <div class="h-full p-4 border-2 border-transparent bg-white/60 rounded-2xl transition-all duration-300 shadow-sm hover:shadow-md hover:-translate-y-1 peer-checked:border-accent peer-checked:bg-blue-50/50 peer-checked:shadow-accent/20 flex flex-col items-center text-center gap-2 relative overflow-hidden">
+                            <div class="absolute inset-0 bg-gradient-to-b from-white/40 to-transparent pointer-events-none"></div>
+                            <div class="w-12 h-12 rounded-full bg-blue-100/50 text-blue-500 flex items-center justify-center mb-1 group-hover:scale-110 transition-transform peer-checked:bg-accent peer-checked:text-white shadow-sm z-10">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"></path></svg>
+                            </div>
+                            <span class="font-bold text-slate-700 peer-checked:text-accent z-10">資料整合</span>
+                            <span class="text-[0.8rem] text-slate-500 font-medium leading-snug z-10">所有資料相接<br>合併至單一分頁</span>
                         </div>
-                        <span
-                            class="label-text text-gray-600 font-medium peer-checked:text-accent peer-checked:font-semibold">資料整合
-                            (所有檔案合併至單一分頁)</span>
                     </label>
                 </div>
             </div>
 
-            <div class="action-section mt-8">
+            <div class="action-section mt-8 relative z-10">
                 <button id="convert-btn" disabled
-                    class="w-full py-3 px-5 bg-primary text-white border-none rounded-xl text-base font-semibold cursor-pointer transition-colors duration-300 hover:bg-primary-hover disabled:bg-gray-400 disabled:cursor-not-allowed">立即轉檔</button>
+                    class="w-full py-4 px-6 bg-gradient-to-r from-blue-600 to-indigo-600 text-white border-none rounded-2xl text-lg font-bold cursor-pointer transition-all duration-300 hover:from-blue-500 hover:to-indigo-500 hover:shadow-lg hover:shadow-indigo-500/30 hover:-translate-y-0.5 disabled:from-slate-300 disabled:to-slate-400 disabled:shadow-none disabled:translate-y-0 disabled:cursor-not-allowed">立即轉檔</button>
             </div>
 
             <footer class="mt-10 text-center text-slate-500 text-sm pt-5 border-t border-slate-200">
@@ -181,14 +191,15 @@
     </main>
 
     <!-- Settings Panel (Side for Desktop, Bottom for Mobile) -->
-    <aside class="w-full md:w-[320px] bg-white rounded-xl shadow-lg p-6 flex flex-col gap-6 h-fit md:sticky md:top-5">
-        <h2 class="text-xl font-bold text-gray-800 border-b pb-2">⚙️ 功能設定</h2>
+    <aside class="w-full md:w-[340px] bg-white/80 backdrop-blur-xl border border-white/60 rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-6 md:p-8 flex flex-col gap-6 h-fit md:sticky md:top-6 relative overflow-hidden">
+        <div class="absolute bottom-0 right-0 -mb-10 -mr-10 w-40 h-40 bg-indigo-400/10 rounded-full blur-2xl pointer-events-none"></div>
+        <h2 class="text-xl font-bold text-slate-800 border-b border-slate-200 pb-3 relative z-10 flex items-center gap-2">⚙️ 功能設定</h2>
 
         <!-- Setting: Cell Type -->
-        <div class="setting-item">
-            <label class="block text-sm font-semibold text-gray-700 mb-2">資料格式</label>
+        <div class="setting-item relative z-10">
+            <label class="block text-[0.9rem] font-bold text-slate-700 mb-2">資料格式</label>
             <select id="setting-cell-type"
-                class="w-full p-2 border border-gray-300 rounded-md focus:border-primary focus:ring-1 focus:ring-primary outline-none text-sm">
+                class="w-full p-2.5 border border-slate-200 bg-white/60 rounded-xl focus:border-accent focus:ring-4 focus:ring-accent/10 outline-none text-sm transition-all shadow-sm">
                 <option value="text" selected>純文字 (保留首位 0)</option>
                 <option value="number">數值格式 (自動轉換)</option>
                 <option value="auto">系統自動辨識</option>
@@ -197,47 +208,47 @@
         </div>
 
         <!-- Setting: Strip Currency -->
-        <div class="setting-item flex items-center justify-between">
+        <div class="setting-item flex items-center justify-between relative z-10 bg-white/50 p-3 rounded-xl border border-slate-100 shadow-sm">
             <div class="flex flex-col">
-                <label class="text-sm font-semibold text-gray-700">清除貨幣符號</label>
-                <p class="text-xs text-gray-500">過濾 $、,、+ 及 .00 尾碼</p>
+                <label class="text-[0.9rem] font-bold text-slate-700">清除貨幣符號</label>
+                <p class="text-[0.75rem] text-slate-500 mt-0.5">過濾 $、,、+ 及 .00 尾碼</p>
             </div>
             <label class="relative inline-flex items-center cursor-pointer">
                 <input type="checkbox" id="setting-strip-currency" class="sr-only peer" checked>
                 <div
-                    class="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary">
+                    class="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-accent/20 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-accent shadow-inner">
                 </div>
             </label>
         </div>
 
         <!-- Setting: Sheet Prefix -->
-        <div class="setting-item">
-            <label class="block text-sm font-semibold text-gray-700 mb-2">分頁名稱前綴</label>
+        <div class="setting-item relative z-10">
+            <label class="block text-[0.9rem] font-bold text-slate-700 mb-2">分頁名稱前綴</label>
             <input type="text" id="setting-sheet-prefix" placeholder="例如: Data_"
-                class="w-full p-2 border border-gray-300 rounded-md focus:border-primary focus:ring-1 focus:ring-primary outline-none text-sm">
+                class="w-full p-2.5 border border-slate-200 bg-white/60 rounded-xl focus:border-accent focus:ring-4 focus:ring-accent/10 outline-none text-sm transition-all shadow-sm">
             <p class="text-xs text-gray-500 mt-1">自訂分頁開頭 (預設為 01, 02...)</p>
         </div>
 
         <!-- Setting: Custom Filename -->
-        <div class="setting-item">
-            <label class="block text-sm font-semibold text-gray-700 mb-2">匯出檔名設定</label>
+        <div class="setting-item relative z-10">
+            <label class="block text-[0.9rem] font-bold text-slate-700 mb-2">匯出檔名設定</label>
             <input type="text" id="setting-custom-filename" placeholder="例如: 114年度報表"
-                class="w-full p-2 border border-gray-300 rounded-md focus:border-primary focus:ring-1 focus:ring-primary outline-none text-sm">
+                class="w-full p-2.5 border border-slate-200 bg-white/60 rounded-xl focus:border-accent focus:ring-4 focus:ring-accent/10 outline-none text-sm transition-all shadow-sm">
             <p class="text-xs text-gray-500 mt-1">若未填寫，系統將根據模式自動命名</p>
         </div>
 
         <!-- Setting: Theme Color -->
-        <div class="setting-item">
-            <label class="block text-sm font-semibold text-gray-700 mb-2">主題顏色</label>
+        <div class="setting-item relative z-10 hidden">
+            <label class="block text-[0.9rem] font-bold text-slate-700 mb-2">主題顏色</label>
             <div class="flex items-center gap-2">
                 <input type="color" id="setting-theme-color" value="#1E3A8A"
-                    class="w-10 h-10 p-0 border-0 rounded cursor-pointer">
-                <span id="theme-color-label" class="text-sm text-gray-600 font-mono">#1E3A8A</span>
+                    class="w-10 h-10 p-0 border-0 rounded cursor-pointer shadow-sm">
+                <span id="theme-color-label" class="text-sm text-slate-600 font-mono">#1E3A8A</span>
             </div>
         </div>
 
-        <div class="mt-auto pt-4 text-xs text-gray-400 text-center">
-            Config-First & UI-Driven Design
+        <div class="mt-auto pt-6 text-xs text-slate-400 font-medium tracking-wide text-center relative z-10 border-t border-slate-100">
+            CONFIG-FIRST & UI-DRIVEN
         </div>
     </aside>
 
