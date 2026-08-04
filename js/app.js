@@ -360,6 +360,125 @@ const app = (function () {
         return matchCount >= 4;
     }
 
+    function alignAccountOpenerRows(cleanedRows, filename) {
+        if (!cleanedRows || cleanedRows.length === 0) return { headers: [], rows: [] };
+        const headers = cleanedRows[0];
+        const data = cleanedRows.slice(1);
+        
+        const standardHeaders = [
+            '身分證統一編號', '開戶行庫分行簡稱代碼', '存款種類', '幣別', '戶名', 
+            '住家電話', '行動電話', '戶籍地址', '通訊地址', '帳號', 
+            '帳戶餘額', '開戶日', '資料提供日', '開戶行總分支機構代碼', '開戶機構'
+        ];
+        
+        const getIdx = (key) => headers.findIndex(h => typeof h === 'string' && h.includes(key));
+        const idx = {
+            id: getIdx('身分證統一編號'), bank: getIdx('開戶行庫分行簡稱代碼'), type: getIdx('存款種類'),
+            currency: getIdx('幣別'), name: getIdx('戶名'), homePhone: getIdx('住家電話'),
+            cellPhone: getIdx('行動電話'), resAddress: getIdx('戶籍地址'), comAddress: getIdx('通訊地址'),
+            account: getIdx('帳號'), balance: headers.findIndex(h => typeof h === 'string' && (h.includes('帳戶餘額') || h.includes('帳戶結餘'))),
+            openDate: getIdx('開戶日'), infoDate: getIdx('資料提供日'), branchCode: getIdx('開戶行總分支機構代碼')
+        };
+        
+        let bankName = "未知機構";
+        const fn = filename.toLowerCase();
+        if (fn.includes("reply") && fn.includes("050")) bankName = "臺灣企銀";
+        else if (fn.includes("reply") && fn.includes("013")) bankName = "國泰世華";
+        else if (fn.includes("reply") && fn.includes("812")) bankName = "台新銀行";
+        else if (fn.includes("reply") && fn.includes("822")) bankName = "中國信託";
+        else if (fn.includes("reply") && fn.includes("007")) bankName = "第一銀行";
+        else if (fn.includes("reply") && fn.includes("807")) bankName = "永豐銀行";
+        else if (fn.includes("reply") && fn.includes("021")) bankName = "花旗銀行";
+        else if (fn.includes("reply") && fn.includes("009")) bankName = "彰化銀行";
+        else if (fn.includes("reply") && fn.includes("008")) bankName = "華南銀行";
+        else if (fn.includes("reply") && fn.includes("004")) bankName = "臺灣銀行";
+        else if (fn.includes("reply") && fn.includes("005")) bankName = "土地銀行";
+        else if (fn.includes("reply") && fn.includes("006")) bankName = "合作金庫";
+        else if (fn.includes("reply") && fn.includes("012")) bankName = "台北富邦";
+        else if (fn.includes("reply") && fn.includes("808")) bankName = "玉山銀行";
+        else if (fn.includes("reply") && fn.includes("803")) bankName = "聯邦銀行";
+        else if (fn.includes("psact")) bankName = "中華郵政";
+        else if (fn.includes("pstrn")) bankName = "中華郵政";
+        else {
+            const match = filename.match(/_(004|005|006|007|008|009|011|012|013|017|021|050|053|054|081|102|103|700|803|805|806|807|808|809|812|822)_/);
+            if (match) {
+                const bankCodes = {
+                    "004": "臺灣銀行", "005": "土地銀行", "006": "合作金庫", "007": "第一銀行", "008": "華南銀行",
+                    "009": "彰化銀行", "012": "台北富邦", "013": "國泰世華", "017": "兆豐銀行", "021": "花旗銀行",
+                    "050": "臺灣企銀", "053": "台中銀行", "054": "京城銀行", "081": "匯豐銀行", "700": "中華郵政",
+                    "803": "聯邦銀行", "807": "永豐銀行", "808": "玉山銀行", "812": "台新銀行", "822": "中國信託"
+                };
+                bankName = bankCodes[match[1]] || "銀行_" + match[1];
+            } else {
+                const knownBanks = ["臺灣銀行", "台銀", "土地銀行", "土銀", "合作金庫", "合庫", "第一銀行", "一銀", "華南銀行", "華銀", 
+                                     "彰化銀行", "彰銀", "台北富邦", "富邦", "國泰世華", "國泰", "兆豐", "花旗", "臺灣企銀", "台企", 
+                                     "中華郵政", "郵局", "聯邦", "永豐", "玉山", "台新", "中國信託", "中信"];
+                for (const kb of knownBanks) {
+                    if (filename.includes(kb)) {
+                        bankName = kb;
+                        break;
+                    }
+                }
+                if (bankName === "未知機構") {
+                    const cleanedName = filename.replace(/\.(csv|xlsx|xls|zip)/i, "").replace(/reply-/i, "").split("_")[0];
+                    bankName = cleanedName || "未知機構";
+                }
+            }
+        }
+        
+        const alignedData = data.map(row => {
+            const newRow = new Array(standardHeaders.length).fill('');
+            newRow[0] = idx.id !== -1 ? String(row[idx.id] || '').trim() : '';
+            newRow[1] = idx.bank !== -1 ? String(row[idx.bank] || '').trim() : '';
+            newRow[2] = idx.type !== -1 ? String(row[idx.type] || '').trim() : '';
+            newRow[3] = idx.currency !== -1 ? String(row[idx.currency] || '').trim() : '';
+            newRow[4] = idx.name !== -1 ? String(row[idx.name] || '').trim() : '';
+            newRow[5] = idx.homePhone !== -1 ? String(row[idx.homePhone] || '').trim() : '';
+            newRow[6] = idx.cellPhone !== -1 ? String(row[idx.cellPhone] || '').trim() : '';
+            newRow[7] = idx.resAddress !== -1 ? String(row[idx.resAddress] || '').trim() : '';
+            newRow[8] = idx.comAddress !== -1 ? String(row[idx.comAddress] || '').trim() : '';
+            newRow[9] = idx.account !== -1 ? String(row[idx.account] || '').trim() : '';
+            newRow[10] = idx.balance !== -1 ? String(row[idx.balance] || '').trim() : '';
+            newRow[11] = idx.openDate !== -1 ? String(row[idx.openDate] || '').trim() : '';
+            newRow[12] = idx.infoDate !== -1 ? String(row[idx.infoDate] || '').trim() : '';
+            newRow[13] = idx.branchCode !== -1 ? String(row[idx.branchCode] || '').trim() : '';
+            newRow[14] = bankName;
+            return newRow;
+        });
+        
+        return { headers: standardHeaders, rows: alignedData };
+    }
+
+    function getHeaderFingerprint(headers) {
+        if (!headers || !Array.isArray(headers)) return '資料明細';
+        const has = (keys) => headers.some(h => typeof h === 'string' && keys.some(k => h.includes(k)));
+        if (has(['登入IP', '登入PORT', '登入時間', 'IP位置'])) return 'IP紀錄';
+        if (has(['支出金額', '存入金額', '交易摘要', '餘額', '對造'])) return '交易明細';
+        if (has(['戶籍地址', '通訊地址', '身分證統一編號'])) return '基本資料';
+        if (has(['卡號', '刷卡', '消費', '授權碼'])) return '信用卡明細';
+        return '資料表';
+    }
+
+    function getShortBankName(filename) {
+        const fn = filename.toLowerCase();
+        if (fn.includes("psact") || fn.includes("pstrn") || fn.includes("郵局")) return "郵局";
+        if (fn.includes("822") || fn.includes("中信") || fn.includes("中國信託")) return "中信";
+        if (fn.includes("013") || fn.includes("國泰")) return "國泰";
+        if (fn.includes("808") || fn.includes("玉山")) return "玉山";
+        if (fn.includes("812") || fn.includes("台新")) return "台新";
+        if (fn.includes("803") || fn.includes("聯邦")) return "聯邦";
+        if (fn.includes("050") || fn.includes("台企") || fn.includes("臺灣企銀")) return "台企";
+        if (fn.includes("007") || fn.includes("一銀") || fn.includes("第一銀行")) return "一銀";
+        if (fn.includes("008") || fn.includes("華銀") || fn.includes("華南")) return "華南";
+        if (fn.includes("009") || fn.includes("彰銀") || fn.includes("彰化")) return "彰化";
+        if (fn.includes("006") || fn.includes("合庫") || fn.includes("合作金庫")) return "合庫";
+        if (fn.includes("012") || fn.includes("富邦") || fn.includes("台北富邦")) return "富邦";
+        if (fn.includes("004") || fn.includes("台銀") || fn.includes("臺灣銀行")) return "台銀";
+        if (fn.includes("005") || fn.includes("土銀") || fn.includes("土地銀行")) return "土銀";
+        if (fn.includes("807") || fn.includes("永豐")) return "永豐";
+        return "";
+    }
+
     function generateAccountOpenerDashboard(allRows) {
         if (!allRows || allRows.length < 2) return allRows;
         const headers = allRows[0];
@@ -370,7 +489,8 @@ const app = (function () {
             currency: getIdx('幣別'), name: getIdx('戶名'), homePhone: getIdx('住家電話'),
             cellPhone: getIdx('行動電話'), resAddress: getIdx('戶籍地址'), comAddress: getIdx('通訊地址'),
             account: getIdx('帳號'), balance: getIdx('帳戶餘額'), openDate: getIdx('開戶日'),
-            infoDate: getIdx('資料提供日'), branchCode: getIdx('開戶行總分支機構代碼')
+            infoDate: getIdx('資料提供日'), branchCode: getIdx('開戶行總分支機構代碼'),
+            bankName: getIdx('開戶機構')
         };
 
         const grouped = {};
@@ -386,7 +506,7 @@ const app = (function () {
             const firstRow = personRows[0];
             const name = firstRow[idx.name] || '';
 
-            finalRows.push([\`【開戶人：\${name}】\`]);
+            finalRows.push(["【開戶人：" + name + "】"]);
             finalRows.push(['查詢身分證字號', id]);
             finalRows.push(['資料類別', '欄位名稱', '資料內容']);
             finalRows.push(['基本資料', '戶名', name]);
@@ -399,11 +519,11 @@ const app = (function () {
 
             const branchCodeVal = firstRow[idx.branchCode] || '';
             finalRows.push(['【名下帳戶】', '開戶行總分支機構代碼', branchCodeVal]);
-            finalRows.push(['銀行代碼', '帳號', '存款種類', '幣別', '帳戶餘額', '開戶日', '資料提供日']);
+            finalRows.push(['開戶機構', '銀行代碼', '帳號', '存款種類', '幣別', '帳戶餘額', '開戶日', '資料提供日']);
             
             personRows.forEach(row => {
                 finalRows.push([
-                    row[idx.bank] || '', row[idx.account] || '', row[idx.type] || '', row[idx.currency] || '',
+                    row[idx.bankName] || '', row[idx.bank] || '', row[idx.account] || '', row[idx.type] || '', row[idx.currency] || '',
                     row[idx.balance] || '', row[idx.openDate] || '', row[idx.infoDate] || ''
                 ]);
             });
@@ -411,8 +531,9 @@ const app = (function () {
             finalRows.push([]);
         });
 
+        const finalHeaders = [...headers];
         finalRows.push(['【原始資料】']);
-        finalRows.push(headers);
+        finalRows.push(finalHeaders);
         finalRows = finalRows.concat(data);
         return finalRows;
     }
@@ -449,7 +570,7 @@ const app = (function () {
         for (let g = 0; g < groupStarts.length - 1; g++) {
             const startRow = groupStarts[g];
             const endRow = groupStarts[g+1] - 2; 
-            const maxCol = 6; 
+            const maxCol = 7; 
             for (let r = startRow; r <= endRow; r++) {
                 for (let c = 0; c <= maxCol; c++) {
                     const cellRef = XLSX.utils.encode_cell({ r: r, c: c });
@@ -470,13 +591,13 @@ const app = (function () {
     function saveMergedFile(wb, config) {
         let filename = "";
         if (config.customFilename) {
-            filename = \`\${config.customFilename}.xlsx\`;
+            filename = config.customFilename + ".xlsx";
         } else {
             const now = new Date();
             const yy = (now.getFullYear() - 1911).toString().padStart(3, '0');
             const mm = (now.getMonth() + 1).toString().padStart(2, '0');
             const dd = now.getDate().toString().padStart(2, '0');
-            filename = \`\${yy}\${mm}\${dd}_Merged_Report.xlsx\`;
+            filename = yy + mm + dd + "_Merged_Report.xlsx";
         }
         let u8 = XLSX.write(wb, { type: 'array', bookType: 'xlsx' });
         self.postMessage({ type: 'download', filename: filename, data: u8 });
@@ -489,16 +610,27 @@ const app = (function () {
                 const rows = await parseData(file);
                 const cleanedRows = cleanData(rows, config);
                 const wb = XLSX.utils.book_new();
+                
+                const headers = cleanedRows[0];
+                const typeName = getHeaderFingerprint(headers);
+                
+                const nameIdx = headers.findIndex(h => typeof h === 'string' && (h.includes('戶名') || h.includes('姓名')));
+                let nameFromData = "";
+                if (nameIdx !== -1 && cleanedRows.length > 1) nameFromData = String(cleanedRows[1][nameIdx]).trim();
+                
+                let sheetName = nameFromData ? (nameFromData + "_" + typeName) : typeName;
+                sheetName = sheetName.replace(/[:\/?*[]]/g, "_").substring(0, 31);
+                
                 const ws = XLSX.utils.aoa_to_sheet(cleanedRows);
                 applyExcelCellFormatting(ws, config);
-                XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
-                let outName = file.name.replace(/\\.(csv|xlsx|xls)$/i, ".xlsx");
-                if (config.customFilename) outName = \`\${config.customFilename}_\${i + 1}.xlsx\`;
+                XLSX.utils.book_append_sheet(wb, ws, sheetName);
+                let outName = file.name.replace(/.(csv|xlsx|xls)$/i, ".xlsx");
+                if (config.customFilename) outName = config.customFilename + "_" + (i + 1) + ".xlsx";
                 
                 let u8 = XLSX.write(wb, { type: 'array', bookType: 'xlsx' });
                 self.postMessage({ type: 'download', filename: outName, data: u8 });
             } catch (err) {
-                self.postMessage({ type: 'error', error: \`產出檔案 \${files[i].name} 時發生錯誤: \${err.message}\` });
+                self.postMessage({ type: 'error', error: "產出檔案 " + files[i].name + " 時發生錯誤: " + err.message });
             }
         }
     }
@@ -506,9 +638,20 @@ const app = (function () {
     async function processMergedSheets(files, config) {
         const wb = XLSX.utils.book_new();
         let accountOpenerRows = [];
-        let regularFilesCount = 0;
         const idToNameMap = {};
+        const accountToBankMap = {};
+        const accountToNameMap = {};
         const allFileData = [];
+        
+        const bankCodes = {
+            "004": "台銀", "005": "土銀", "006": "合庫", "007": "一銀", "008": "華南",
+            "009": "彰銀", "011": "上海", "012": "富邦", "013": "國泰", "017": "兆豐",
+            "021": "花旗", "039": "澳盛", "048": "王道", "050": "台企", "052": "渣打",
+            "053": "台中", "054": "京城", "081": "匯豐", "102": "華泰", "103": "新光",
+            "108": "陽信", "118": "板信", "147": "三信", "700": "郵局", "803": "聯邦",
+            "805": "遠東", "806": "元大", "807": "永豐", "808": "玉山", "809": "凱基",
+            "812": "台新", "815": "日盛", "816": "安泰", "822": "中信"
+        };
 
         for (let i = 0; i < files.length; i++) {
             try {
@@ -521,60 +664,110 @@ const app = (function () {
                     const headers = cleanedRows[0];
                     const nameIdx = headers.findIndex(h => typeof h === 'string' && (h.includes('戶名') || h.includes('姓名')));
                     const idIdx = headers.findIndex(h => typeof h === 'string' && (h.includes('身分證') || h.includes('證號')));
+                    const accIdx = headers.findIndex(h => typeof h === 'string' && h.includes('帳號'));
+                    const branchIdx = headers.findIndex(h => typeof h === 'string' && (h.includes('總分支機構代碼') || h.includes('開戶行總分支機構代碼')));
                     
-                    if (nameIdx !== -1 && idIdx !== -1) {
-                        cleanedRows.slice(1).forEach(row => {
-                            const id = String(row[idIdx] || '').trim();
-                            const name = String(row[nameIdx] || '').trim();
-                            if (id && name && !idToNameMap[id]) {
-                                idToNameMap[id] = name;
+                    cleanedRows.slice(1).forEach(row => {
+                        const id = String(row[idIdx] || '').trim();
+                        const name = String(row[nameIdx] || '').trim();
+                        const acc = String(row[accIdx] || '').trim().replace(/[-]/g, '');
+                        const branch = String(row[branchIdx] || '').trim();
+                        
+                        if (id && name && !idToNameMap[id]) {
+                            idToNameMap[id] = name;
+                        }
+                        if (acc) {
+                            if (name) accountToNameMap[acc] = name;
+                            if (branch) {
+                                const code = branch.substring(0, 3);
+                                if (bankCodes[code]) {
+                                    accountToBankMap[acc] = bankCodes[code];
+                                }
                             }
-                        });
-                    }
+                        }
+                    });
                 }
             } catch (err) {
-                self.postMessage({ type: 'error', error: \`預掃描檔案 \${files[i].name} 時發生錯誤: \${err.message}\` });
+                self.postMessage({ type: 'error', error: "預掃描檔案 " + files[i].name + " 時發生錯誤: " + err.message });
             }
         }
 
         for (let i = 0; i < allFileData.length; i++) {
             try {
-                const { cleanedRows } = allFileData[i];
+                const { cleanedRows, file } = allFileData[i];
                 if (isAccountOpenerData(cleanedRows)) {
+                    const aligned = alignAccountOpenerRows(cleanedRows, file.name);
                     if (accountOpenerRows.length === 0) {
-                        accountOpenerRows = cleanedRows;
+                        accountOpenerRows = [aligned.headers].concat(aligned.rows);
                     } else {
-                        accountOpenerRows = accountOpenerRows.concat(cleanedRows.slice(1));
+                        accountOpenerRows = accountOpenerRows.concat(aligned.rows);
                     }
                     continue;
                 }
 
                 const headers = cleanedRows[0];
+                const typeName = getHeaderFingerprint(headers);
+                
                 const nameIdx = headers.findIndex(h => typeof h === 'string' && (h.includes('戶名') || h.includes('姓名')));
                 const idIdx = headers.findIndex(h => typeof h === 'string' && (h.includes('身分證') || h.includes('證號')));
+                const accIdx = headers.findIndex(h => typeof h === 'string' && h.includes('帳號'));
+                
+                let accNum = "";
+                if (accIdx !== -1 && cleanedRows.length > 1) {
+                    accNum = String(cleanedRows[1][accIdx]).trim().replace(/[-]/g, '');
+                }
+                
                 let nameFromData = "";
-                if (nameIdx !== -1 && cleanedRows.length > 1) nameFromData = String(cleanedRows[1][nameIdx]).trim();
+                if (accNum && accountToNameMap[accNum]) {
+                    nameFromData = accountToNameMap[accNum];
+                }
+                if (!nameFromData && nameIdx !== -1 && cleanedRows.length > 1) {
+                    nameFromData = String(cleanedRows[1][nameIdx]).trim();
+                }
                 if (!nameFromData && idIdx !== -1 && cleanedRows.length > 1) {
                     const id = String(cleanedRows[1][idIdx]).trim();
                     if (idToNameMap[id]) nameFromData = idToNameMap[id];
                 }
-
+                
+                let bankShort = "";
+                if (accNum && accountToBankMap[accNum]) {
+                    bankShort = accountToBankMap[accNum];
+                }
+                if (!bankShort) {
+                    bankShort = getShortBankName(file.name);
+                }
+                
+                let accSuffix = "";
+                if (accNum && accNum.length >= 4) {
+                    accSuffix = accNum.substring(accNum.length - 4);
+                }
+                
                 let sheetName = "";
-                if (nameFromData) {
-                    sheetName = nameFromData;
+                let namePart = nameFromData || "未知";
+                
+                let detailPart = "";
+                if (bankShort && accSuffix) {
+                    detailPart = bankShort + accSuffix;
+                } else if (bankShort) {
+                    detailPart = bankShort;
+                } else if (accSuffix) {
+                    detailPart = accSuffix;
+                }
+                
+                if (detailPart) {
+                    sheetName = namePart + "_" + detailPart + "_" + typeName;
                 } else {
-                    regularFilesCount++;
-                    sheetName = regularFilesCount.toString().padStart(2, "0");
+                    sheetName = namePart + "_" + typeName;
                 }
 
                 if (config.sheetPrefix) sheetName = config.sheetPrefix + sheetName;
-                sheetName = sheetName.replace(/[:\\\\/?*\\[\\]]/g, "_");
+                sheetName = sheetName.replace(/[:\/?*[]]/g, "_");
                 if (sheetName.length > 31) sheetName = sheetName.substring(0, 31);
 
                 let finalSheetName = sheetName;
                 let suffix = 1;
                 while (wb.SheetNames.includes(finalSheetName)) {
-                    let suffixStr = \`(\${suffix})\`;
+                    let suffixStr = "(" + suffix + ")";
                     finalSheetName = sheetName.substring(0, 31 - suffixStr.length) + suffixStr;
                     suffix++;
                 }
@@ -583,7 +776,7 @@ const app = (function () {
                 applyExcelCellFormatting(ws, config);
                 XLSX.utils.book_append_sheet(wb, ws, finalSheetName);
             } catch (err) {
-                self.postMessage({ type: 'error', error: \`合併分頁 \${i+1} 時發生錯誤: \${err.message}\` });
+                self.postMessage({ type: 'error', error: "合併分頁 " + (i + 1) + " 時發生錯誤: " + err.message });
             }
         }
 
@@ -600,7 +793,6 @@ const app = (function () {
         }
         saveMergedFile(wb, config);
     }
-
     async function processMergedSingleSheet(files, config) {
         const wb = XLSX.utils.book_new();
         let combinedRows = [];
