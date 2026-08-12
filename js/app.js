@@ -14,6 +14,19 @@ const app = (function () {
         customFilename: ''
     };
 
+    // ZIP 解壓防護：避免單次操作耗盡瀏覽器記憶體。
+    const ZIP_LIMITS = {
+        maxDepth: 3,
+        maxEntries: 500,
+        maxUncompressedBytes: 500 * 1024 * 1024
+    };
+
+    function zipLimitError(message) {
+        const error = new Error(message);
+        error.code = 'ZIP_LIMIT';
+        return error;
+    }
+
     function showToast(message, type = 'info') {
         const container = document.getElementById('toast-container');
         if (!container) return;
@@ -203,10 +216,11 @@ const app = (function () {
                         filesToProcess.push(file);
                     }
                 } else if (ext === 'zip') {
-                    await processZipFile(file);
+                    await processZipFile(file, { entries: 0, uncompressedBytes: 0 });
                 }
             } catch (err) {
                 console.warn(`⚠️ 處理檔案 ${file.name} 時發生錯誤:`, err);
+                showToast(`處理檔案 ${file.name} 時發生錯誤：${err.message}`, "error");
             }
         }
 
@@ -215,7 +229,11 @@ const app = (function () {
         updateConvertBtn();
     }
 
-    async function processZipFile(fileOrBlob) {
+    async function processZipFile(fileOrBlob, state, depth = 0) {
+        if (depth > ZIP_LIMITS.maxDepth) {
+            throw zipLimitError(`ZIP 巢狀層數超過 ${ZIP_LIMITS.maxDepth} 層限制`);
+        }
+
         try {
             const zip = new JSZip();
             const contents = await zip.loadAsync(fileOrBlob);
@@ -225,9 +243,23 @@ const app = (function () {
                     if (zipEntry.dir) continue;
                     if (filename.includes('__MACOSX/') || filename.split('/').pop().startsWith('.')) continue;
 
+                    state.entries++;
+                    if (state.entries > ZIP_LIMITS.maxEntries) {
+                        throw zipLimitError(`ZIP 檔案數超過 ${ZIP_LIMITS.maxEntries} 個限制`);
+                    }
+
+                    const expectedSize = Number(zipEntry._data && zipEntry._data.uncompressedSize);
+                    if (Number.isFinite(expectedSize) && state.uncompressedBytes + expectedSize > ZIP_LIMITS.maxUncompressedBytes) {
+                        throw zipLimitError('ZIP 解壓後總容量超過 500 MB 限制');
+                    }
+
                     const ext = filename.split('.').pop().toLowerCase();
                     if (['csv', 'xlsx', 'xls'].includes(ext)) {
                         const blob = await zipEntry.async("blob");
+                        state.uncompressedBytes += blob.size;
+                        if (state.uncompressedBytes > ZIP_LIMITS.maxUncompressedBytes) {
+                            throw zipLimitError('ZIP 解壓後總容量超過 500 MB 限制');
+                        }
                         const actualName = filename.split('/').pop();
                         const extractedFile = new File([blob], actualName, { type: blob.type || "application/octet-stream" });
                         if (!filesToProcess.some(f => f.name === extractedFile.name && f.size === extractedFile.size)) {
@@ -235,15 +267,20 @@ const app = (function () {
                         }
                     } else if (ext === 'zip') {
                         const blob = await zipEntry.async("blob");
-                        await processZipFile(blob);
+                        state.uncompressedBytes += blob.size;
+                        if (state.uncompressedBytes > ZIP_LIMITS.maxUncompressedBytes) {
+                            throw zipLimitError('ZIP 解壓後總容量超過 500 MB 限制');
+                        }
+                        await processZipFile(blob, state, depth + 1);
                     }
                 } catch (innerErr) {
                     console.warn(`⚠️ 解析 ZIP 內檔案 [${filename}] 時發生錯誤:`, innerErr);
+                    if (innerErr.code === 'ZIP_LIMIT') throw innerErr;
                 }
             }
         } catch (err) {
             console.error("⚠️ 讀取 ZIP 檔案本身失敗:", err);
-            showToast("讀取 ZIP 檔案本身失敗", "error");
+            throw err;
         }
     }
 
@@ -334,13 +371,27 @@ const app = (function () {
         return XLSX.utils.sheet_to_json(ws, { header: 1, raw: false, defval: "" });
     }
 
+    function isCurrencyHeader(header) {
+        return typeof header === 'string' && /(?:金額|餘額|結餘|存入|支出|交易額|匯款額|付款額|收款額)/.test(header);
+    }
+
+    function getCurrencyColumnIndexes(headers) {
+        if (!Array.isArray(headers)) return new Set();
+        return new Set(headers.reduce((indexes, header, index) => {
+            if (isCurrencyHeader(header)) indexes.push(index);
+            return indexes;
+        }, []));
+    }
+
     function cleanData(rows, config) {
         if (!config.stripCurrency) return rows;
-        return rows.map(row => {
-            return row.map(cell => {
-                if (typeof cell === 'string') {
-                    let cleaned = cell.replace(/[$,+]/g, '');
-                    cleaned = cleaned.replace(/\\.0+$/, '');
+        const currencyColumns = getCurrencyColumnIndexes(rows[0]);
+        return rows.map((row, rowIndex) => {
+            if (rowIndex === 0) return row;
+            return row.map((cell, columnIndex) => {
+                if (currencyColumns.has(columnIndex) && typeof cell === 'string') {
+                    let cleaned = cell.replace(/[$,]/g, '');
+                    if (/^-?\d+\.0+$/.test(cleaned)) cleaned = cleaned.replace(/\.0+$/, '');
                     return cleaned;
                 }
                 return cell;
@@ -541,6 +592,12 @@ const app = (function () {
     function applyExcelCellFormatting(ws, config) {
         if (!ws || !ws['!ref']) return;
         const range = XLSX.utils.decode_range(ws['!ref']);
+        const headers = [];
+        for (let C = range.s.c; C <= range.e.c; ++C) {
+            const headerCell = ws[XLSX.utils.encode_cell({ c: C, r: range.s.r })];
+            headers[C] = headerCell ? headerCell.v : '';
+        }
+        const currencyColumns = getCurrencyColumnIndexes(headers);
         for (let R = range.s.r; R <= range.e.r; ++R) {
             for (let C = range.s.c; C <= range.e.c; ++C) {
                 const cell_address = { c: C, r: R };
@@ -549,10 +606,13 @@ const app = (function () {
                 if (!cell) continue;
                 if (config.cellType === 'text') {
                     cell.t = 's';
-                } else if (config.cellType === 'number') {
-                    if (typeof cell.v === 'string' && !isNaN(parseFloat(cell.v.replace(/[$,]/g, '')))) {
+                    cell.v = String(cell.v);
+                    cell.z = '@';
+                } else if (config.cellType === 'number' && R !== range.s.r && currencyColumns.has(C)) {
+                    const normalized = typeof cell.v === 'string' ? cell.v.trim().replace(/[$,]/g, '') : '';
+                    if (/^-?(?:\d+|\d*\.\d+)$/.test(normalized)) {
                         cell.t = 'n';
-                        cell.v = parseFloat(cell.v.replace(/[$,]/g, ''));
+                        cell.v = Number(normalized);
                     }
                 }
             }
@@ -604,6 +664,7 @@ const app = (function () {
     }
 
     async function processIndividual(files, config) {
+        const errors = [];
         for (let i = 0; i < files.length; i++) {
             try {
                 const file = files[i];
@@ -630,9 +691,10 @@ const app = (function () {
                 let u8 = XLSX.write(wb, { type: 'array', bookType: 'xlsx' });
                 self.postMessage({ type: 'download', filename: outName, data: u8 });
             } catch (err) {
-                self.postMessage({ type: 'error', error: "產出檔案 " + files[i].name + " 時發生錯誤: " + err.message });
+                errors.push("產出檔案 " + files[i].name + " 時發生錯誤: " + err.message);
             }
         }
+        return errors;
     }
 
     async function processMergedSheets(files, config) {
@@ -642,6 +704,7 @@ const app = (function () {
         const accountToBankMap = {};
         const accountToNameMap = {};
         const allFileData = [];
+        const errors = [];
         
         const bankCodes = {
             "004": "台銀", "005": "土銀", "006": "合庫", "007": "一銀", "008": "華南",
@@ -688,7 +751,7 @@ const app = (function () {
                     });
                 }
             } catch (err) {
-                self.postMessage({ type: 'error', error: "預掃描檔案 " + files[i].name + " 時發生錯誤: " + err.message });
+                errors.push("預掃描檔案 " + files[i].name + " 時發生錯誤: " + err.message);
             }
         }
 
@@ -776,7 +839,7 @@ const app = (function () {
                 applyExcelCellFormatting(ws, config);
                 XLSX.utils.book_append_sheet(wb, ws, finalSheetName);
             } catch (err) {
-                self.postMessage({ type: 'error', error: "合併分頁 " + (i + 1) + " 時發生錯誤: " + err.message });
+                errors.push("合併分頁 " + (i + 1) + " 時發生錯誤: " + err.message);
             }
         }
 
@@ -792,11 +855,13 @@ const app = (function () {
             wb.SheetNames = sheetNames;
         }
         saveMergedFile(wb, config);
+        return errors;
     }
     async function processMergedSingleSheet(files, config) {
         const wb = XLSX.utils.book_new();
         let combinedRows = [];
         let firstFileHeader = [];
+        const errors = [];
 
         for (let i = 0; i < files.length; i++) {
             try {
@@ -819,7 +884,7 @@ const app = (function () {
                 const cleanedRows = cleanData(dataRows, config);
                 combinedRows = combinedRows.concat(cleanedRows);
             } catch (err) {
-                self.postMessage({ type: 'error', error: \`合併單頁 \${i+1} 時發生錯誤: \${err.message}\` });
+                errors.push(\`合併單頁 \${i+1} 時發生錯誤: \${err.message}\`);
             }
         }
 
@@ -829,19 +894,23 @@ const app = (function () {
             XLSX.utils.book_append_sheet(wb, ws, "合併彙總");
             saveMergedFile(wb, config);
         }
+        return errors;
     }
 
     self.onmessage = async function(e) {
         const { files, mode, config } = e.data;
         try {
+            let errors = [];
             if (mode === "individual") {
-                await processIndividual(files, config);
+                errors = await processIndividual(files, config);
             } else if (mode === "merged_sheets") {
-                await processMergedSheets(files, config);
+                errors = await processMergedSheets(files, config);
             } else if (mode === "merged_single_sheet") {
-                await processMergedSingleSheet(files, config);
+                errors = await processMergedSingleSheet(files, config);
+            } else {
+                throw new Error('不支援的轉檔模式');
             }
-            self.postMessage({ type: 'done' });
+            self.postMessage({ type: 'done', errors: errors });
         } catch (err) {
             self.postMessage({ type: 'error', error: err.message });
         }
@@ -866,7 +935,11 @@ const app = (function () {
                     a.remove();
                     URL.revokeObjectURL(url);
                 } else if (e.data.type === 'done') {
-                    showToast("轉換完成！", "success");
+                    if (e.data.errors && e.data.errors.length > 0) {
+                        showToast(`轉換完成，但 ${e.data.errors.length} 個檔案失敗：${e.data.errors[0]}`, "error");
+                    } else {
+                        showToast("轉換完成！", "success");
+                    }
                     finishConvert();
                 } else if (e.data.type === 'error') {
                     showToast("發生錯誤：" + e.data.error, "error");
