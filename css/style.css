@@ -1,7 +1,28 @@
         :root {
-            --color-primary: #1E3A8A;
-            --color-primary-hover: #1e40af;
-            --color-accent: #38bdf8;
+            --color-primary: #526F94;
+            --color-primary-hover: #58789A;
+            --color-accent: #52745F;
+            --bg: #F3F5F8;
+            --surface: rgba(255, 255, 255, 0.85);
+            --text: #2B364B;
+            --text-muted: #667080;
+            --warning: #965A4A;
+            --shadow: 0 8px 30px rgba(160, 175, 195, 0.12);
+        }
+
+        body {
+            background: var(--bg) !important;
+            color: var(--text);
+            font-family: "Microsoft JhengHei", "Segoe UI", system-ui, sans-serif;
+        }
+        .container, #drop-zone, .radio-group > label > div {
+            box-shadow: var(--shadow);
+        }
+        .dropzone-hint svg { width: 42px; height: 42px; margin-bottom: 10px; fill: none; stroke: var(--color-primary); stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; opacity: .75; }
+        .drop-zone.has-files .dropzone-hint { display: none; }
+        input:focus, textarea:focus, select:focus {
+            border-color: var(--color-primary) !important;
+            box-shadow: 0 0 0 3px rgba(107, 139, 176, .16) !important;
         }
 
         /* Loading Overlay */

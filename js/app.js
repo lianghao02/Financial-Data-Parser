@@ -310,6 +310,7 @@ const app = (function () {
 
     function updateFileList() {
         fileListEl.innerHTML = "";
+        dropZone.classList.toggle("has-files", filesToProcess.length > 0);
         if (filesToProcess.length > 0) {
             clearAllBtn.classList.remove("hidden");
             fileListTitle.classList.remove("hidden");
