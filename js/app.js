@@ -28,8 +28,13 @@ const app = (function () {
     }
 
     function showToast(message, type = 'info') {
-        const container = document.getElementById('toast-container');
-        if (!container) return;
+        let container = document.getElementById('toast-container');
+        if (!container) {
+            container = document.createElement('div');
+            container.id = 'toast-container';
+            container.className = 'fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none';
+            document.body.appendChild(container);
+        }
 
         const toast = document.createElement('div');
         toast.className = `toast-enter flex items-center gap-3 px-4 py-3 rounded-lg shadow-lg text-white max-w-sm pointer-events-auto`;
@@ -241,7 +246,9 @@ const app = (function () {
                 try {
                     const zipEntry = contents.files[filename];
                     if (zipEntry.dir) continue;
-                    if (filename.includes('__MACOSX/') || filename.split('/').pop().startsWith('.')) continue;
+
+                    const normalizedPath = filename.replace(/\\/g, '/');
+                    if (normalizedPath.includes('__MACOSX/') || normalizedPath.split('/').pop().startsWith('.')) continue;
 
                     state.entries++;
                     if (state.entries > ZIP_LIMITS.maxEntries) {
@@ -253,18 +260,35 @@ const app = (function () {
                         throw zipLimitError('ZIP 解壓後總容量超過 500 MB 限制');
                     }
 
-                    const ext = filename.split('.').pop().toLowerCase();
+                    const ext = normalizedPath.split('.').pop().toLowerCase();
                     if (['csv', 'xlsx', 'xls'].includes(ext)) {
                         const blob = await zipEntry.async("blob");
                         state.uncompressedBytes += blob.size;
                         if (state.uncompressedBytes > ZIP_LIMITS.maxUncompressedBytes) {
                             throw zipLimitError('ZIP 解壓後總容量超過 500 MB 限制');
                         }
-                        const actualName = filename.split('/').pop();
-                        const extractedFile = new File([blob], actualName, { type: blob.type || "application/octet-stream" });
-                        if (!filesToProcess.some(f => f.name === extractedFile.name && f.size === extractedFile.size)) {
-                            filesToProcess.push(extractedFile);
+
+                        const pathParts = normalizedPath.split('/').filter(Boolean);
+                        const rawName = pathParts.pop() || 'unnamed';
+                        let candidateName = rawName;
+                        if (pathParts.length > 0) {
+                            candidateName = `${pathParts.join('_')}_${rawName}`;
                         }
+
+                        let finalName = candidateName;
+                        let counter = 1;
+                        while (filesToProcess.some(f => f.name === finalName)) {
+                            const extIdx = candidateName.lastIndexOf('.');
+                            if (extIdx !== -1) {
+                                finalName = `${candidateName.substring(0, extIdx)}_(${counter})${candidateName.substring(extIdx)}`;
+                            } else {
+                                finalName = `${candidateName}_(${counter})`;
+                            }
+                            counter++;
+                        }
+
+                        const extractedFile = new File([blob], finalName, { type: blob.type || "application/octet-stream" });
+                        filesToProcess.push(extractedFile);
                     } else if (ext === 'zip') {
                         const blob = await zipEntry.async("blob");
                         state.uncompressedBytes += blob.size;
@@ -335,35 +359,58 @@ const app = (function () {
 
     // --- Web Worker Blob ---
     const workerCode = `
-    importScripts('https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js');
+    if (typeof XLSX === 'undefined') {
+        try {
+            importScripts('js/libs/xlsx.bundle.js');
+        } catch (e1) {
+            try {
+                importScripts('../js/libs/xlsx.bundle.js');
+            } catch (e2) {
+                try {
+                    importScripts(self.location.origin + '/js/libs/xlsx.bundle.js');
+                } catch (e3) {
+                    importScripts('https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js');
+                }
+            }
+        }
+    }
 
     async function parseData(file) {
         const arrayBuffer = await file.arrayBuffer();
         const data = new Uint8Array(arrayBuffer);
         
-        // 判斷是否為二進位 Excel 格式 (XLSX = PK, XLS = D0 CF 11 E0)
         let isBinaryExcel = false;
         if (data.length >= 4) {
-            if (data[0] === 0x50 && data[1] === 0x4B) isBinaryExcel = true; // PK (ZIP)
-            if (data[0] === 0xD0 && data[1] === 0xCF && data[2] === 0x11 && data[3] === 0xE0) isBinaryExcel = true; // CFB (XLS)
+            if (data[0] === 0x50 && data[1] === 0x4B) isBinaryExcel = true;
+            if (data[0] === 0xD0 && data[1] === 0xCF && data[2] === 0x11 && data[3] === 0xE0) isBinaryExcel = true;
         }
 
         let wb;
         if (!isBinaryExcel) {
-            // 純文字格式 (CSV / HTML / XML)，處理 Big5 與 UTF-8 編碼
             let text = "";
-            try {
-                // 嚴格嘗試以 UTF-8 解碼 (若為 Big5，碰到中文字會觸發例外)
-                const decoder = new TextDecoder('utf-8', { fatal: true });
-                text = decoder.decode(arrayBuffer);
-            } catch (e) {
-                // 解析失敗代表含有非 UTF-8 字元，降級使用 Big5 解碼
-                const decoder = new TextDecoder('big5');
-                text = decoder.decode(arrayBuffer);
+            let decoded = false;
+
+            if (data.length >= 2) {
+                if (data[0] === 0xFF && data[1] === 0xFE) {
+                    text = new TextDecoder('utf-16le').decode(arrayBuffer);
+                    decoded = true;
+                } else if (data[0] === 0xFE && data[1] === 0xFF) {
+                    text = new TextDecoder('utf-16be').decode(arrayBuffer);
+                    decoded = true;
+                }
+            }
+
+            if (!decoded) {
+                try {
+                    const decoder = new TextDecoder('utf-8', { fatal: true });
+                    text = decoder.decode(arrayBuffer);
+                } catch (e) {
+                    const decoder = new TextDecoder('big5');
+                    text = decoder.decode(arrayBuffer);
+                }
             }
             wb = XLSX.read(text, { type: 'string' });
         } else {
-            // 二進位格式，直接交由 SheetJS 解析
             wb = XLSX.read(data, { type: 'array' });
         }
         
@@ -384,6 +431,7 @@ const app = (function () {
     }
 
     function cleanData(rows, config) {
+        if (!rows || !Array.isArray(rows) || rows.length === 0) return [];
         if (!config.stripCurrency) return rows;
         const currencyColumns = getCurrencyColumnIndexes(rows[0]);
         return rows.map((row, rowIndex) => {
@@ -391,7 +439,7 @@ const app = (function () {
             return row.map((cell, columnIndex) => {
                 if (currencyColumns.has(columnIndex) && typeof cell === 'string') {
                     let cleaned = cell.replace(/[$,]/g, '');
-                    if (/^-?\d+\.0+$/.test(cleaned)) cleaned = cleaned.replace(/\.0+$/, '');
+                    if (/^-?\\d+\\.0+$/.test(cleaned)) cleaned = cleaned.replace(/\\.0+$/, '');
                     return cleaned;
                 }
                 return cell;
@@ -471,7 +519,7 @@ const app = (function () {
                     }
                 }
                 if (bankName === "未知機構") {
-                    const cleanedName = filename.replace(/\.(csv|xlsx|xls|zip)/i, "").replace(/reply-/i, "").split("_")[0];
+                    const cleanedName = filename.replace(/\\.(csv|xlsx|xls|zip)/i, "").replace(/reply-/i, "").split("_")[0];
                     bankName = cleanedName || "未知機構";
                 }
             }
@@ -610,7 +658,7 @@ const app = (function () {
                     cell.z = '@';
                 } else if (config.cellType === 'number' && R !== range.s.r && currencyColumns.has(C)) {
                     const normalized = typeof cell.v === 'string' ? cell.v.trim().replace(/[$,]/g, '') : '';
-                    if (/^-?(?:\d+|\d*\.\d+)$/.test(normalized)) {
+                    if (/^-?(?:\\d+|\\d*\\.\\d+)$/.test(normalized)) {
                         cell.t = 'n';
                         cell.v = Number(normalized);
                     }
@@ -680,12 +728,12 @@ const app = (function () {
                 if (nameIdx !== -1 && cleanedRows.length > 1) nameFromData = String(cleanedRows[1][nameIdx]).trim();
                 
                 let sheetName = nameFromData ? (nameFromData + "_" + typeName) : typeName;
-                sheetName = sheetName.replace(/[:\/?*[]]/g, "_").substring(0, 31);
+                sheetName = sheetName.replace(/[\\\\:\\/?*\\[\\]]/g, "_").substring(0, 31);
                 
                 const ws = XLSX.utils.aoa_to_sheet(cleanedRows);
                 applyExcelCellFormatting(ws, config);
                 XLSX.utils.book_append_sheet(wb, ws, sheetName);
-                let outName = file.name.replace(/.(csv|xlsx|xls)$/i, ".xlsx");
+                let outName = file.name.replace(/\\.(csv|xlsx|xls)$/i, ".xlsx");
                 if (config.customFilename) outName = config.customFilename + "_" + (i + 1) + ".xlsx";
                 
                 let u8 = XLSX.write(wb, { type: 'array', bookType: 'xlsx' });
@@ -824,7 +872,7 @@ const app = (function () {
                 }
 
                 if (config.sheetPrefix) sheetName = config.sheetPrefix + sheetName;
-                sheetName = sheetName.replace(/[:\/?*[]]/g, "_");
+                sheetName = sheetName.replace(/[\\\\:\\/?*\\[\\]]/g, "_");
                 if (sheetName.length > 31) sheetName = sheetName.substring(0, 31);
 
                 let finalSheetName = sheetName;
@@ -857,6 +905,7 @@ const app = (function () {
         saveMergedFile(wb, config);
         return errors;
     }
+
     async function processMergedSingleSheet(files, config) {
         const wb = XLSX.utils.book_new();
         let combinedRows = [];
@@ -884,7 +933,7 @@ const app = (function () {
                 const cleanedRows = cleanData(dataRows, config);
                 combinedRows = combinedRows.concat(cleanedRows);
             } catch (err) {
-                errors.push(\`合併單頁 \${i+1} 時發生錯誤: \${err.message}\`);
+                errors.push("合併單頁 " + (i + 1) + " 時發生錯誤: " + err.message);
             }
         }
 
@@ -921,7 +970,9 @@ const app = (function () {
     function getWorker() {
         if (!workerInstance) {
             const blob = new Blob([workerCode], { type: 'application/javascript' });
-            workerInstance = new Worker(URL.createObjectURL(blob));
+            const workerUrl = URL.createObjectURL(blob);
+            workerInstance = new Worker(workerUrl);
+            URL.revokeObjectURL(workerUrl);
             
             workerInstance.onmessage = (e) => {
                 if (e.data.type === 'download') {
@@ -936,7 +987,7 @@ const app = (function () {
                     URL.revokeObjectURL(url);
                 } else if (e.data.type === 'done') {
                     if (e.data.errors && e.data.errors.length > 0) {
-                        showToast(`轉換完成，但 ${e.data.errors.length} 個檔案失敗：${e.data.errors[0]}`, "error");
+                        showToast("轉換完成，但 " + e.data.errors.length + " 個檔案失敗：" + e.data.errors[0], "error");
                     } else {
                         showToast("轉換完成！", "success");
                     }
