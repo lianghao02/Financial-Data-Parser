@@ -1,11 +1,20 @@
-# 金融資料 CSV 轉 Excel 解析工具 v1.6.1
+# 金融資料 CSV 轉 Excel 解析工具 v1.7.0
 
-[![Version](https://img.shields.io/badge/version-v1.6.1-blue.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-v1.7.0-blue.svg)](CHANGELOG.md)
 [![Runtime](https://img.shields.io/badge/runtime-browser-orange.svg)](index.html)
 
 這是一套在瀏覽器本機執行的 CSV／ZIP 轉 Excel 工具，適合整理銀行交易明細及需要保留帳號前導零的表格資料。轉檔核心使用專案內附的 JavaScript 函式庫，不會主動將檔案上傳到外部服務。
 
-## v1.6.1 更新重點
+## 下載、依賴與部署
+
+- **安裝**：不需 Python、Node.js 或 Excel；下載 ZIP、解壓後開啟 `index.html` 即可使用。
+- **本機依賴**：SheetJS、JSZip 與編碼處理函式庫已放在 `js/libs/`，核心 CSV／ZIP 轉檔不依賴第三方伺服器。
+- **網路邊界**：畫面樣式使用 Tailwind CDN；離線時核心轉檔仍可運作，但外觀可能與連線時不同。
+- **功能**：辨識 UTF-8、Big5、UTF-16 CSV，批次解壓 ZIP、保留前導零並輸出 Excel。
+- **打包／部署**：本專案是靜態網站，不需建置；部署時必須連同 `js/` 與 `js/libs/` 一起上傳。
+- **容量限制**：處理全部在瀏覽器記憶體中進行，超大型檔案應拆分並抽查輸出筆數與金額。
+
+## v1.7.0 更新重點
 
 - 改用專案內附的 SheetJS、JSZip 與編碼函式庫，降低外部 CDN 失效風險。
 - 支援 UTF-8、Big5 與 UTF-16 CSV 的編碼判斷。
