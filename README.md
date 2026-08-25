@@ -1,5 +1,9 @@
 # 金融資料 CSV 轉 Excel 解析工具 v1.7.0
 
+## 技術架構現況（2026-08-24）
+
+本專案主力為 **HTML5／Vanilla JavaScript**，搭配專案內附 SheetJS、JSZip 與編碼函式庫於瀏覽器本機處理資料。現階段維持免安裝靜態網站；若需改善大型檔案互動，優先導入 Web Worker，不進行語言遷移。
+
 [![Version](https://img.shields.io/badge/version-v1.7.0-blue.svg)](CHANGELOG.md)
 [![Runtime](https://img.shields.io/badge/runtime-browser-orange.svg)](index.html)
 
