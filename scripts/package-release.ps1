@@ -1,11 +1,15 @@
 [CmdletBinding()]
 param(
     [string]$Version = "v1.7.0",
-    [string]$OutputDir = "$PSScriptRoot\..\dist"
+    [string]$OutputDir = ""
 )
 
 $ErrorActionPreference = 'Stop'
 $root = (Resolve-Path "$PSScriptRoot\..").Path
+
+if ([string]::IsNullOrWhiteSpace($OutputDir)) {
+    $OutputDir = Join-Path $root "dist"
+}
 
 Write-Host "Packaging Financial-Data-Parser $Version..." -ForegroundColor Cyan
 
