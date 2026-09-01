@@ -1,6 +1,6 @@
 # 📊 金融資料 CSV 轉 Excel 解析工具 (Financial Data Parser)
 
-[![Version](https://img.shields.io/badge/version-v1.7.0-blue.svg?style=flat-square)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-v1.7.1-blue.svg?style=flat-square)](CHANGELOG.md)
 [![License](https://img.shields.io/badge/license-MIT-green.svg?style=flat-square)](LICENSE)
 [![GitHub Pages](https://img.shields.io/badge/Live%20Demo-GitHub%20Pages-brightgreen.svg?style=flat-square&logo=github)](https://lianghao02.github.io/Financial-Data-Parser/)
 [![Offline Ready](https://img.shields.io/badge/Offline-Ready-orange.svg?style=flat-square)](https://github.com/lianghao02/Financial-Data-Parser/releases)
@@ -26,7 +26,7 @@
 若您的電腦位於無網際網路連線之公務內網或機密環境，請下載離線包：
 
 1. 前往 **[Releases 發布頁面](https://github.com/lianghao02/Financial-Data-Parser/releases)**。
-2. 下載最新的 **`Financial-Data-Parser-v1.7.0.zip`**。
+2. 下載最新的 **`Financial-Data-Parser-v1.7.1.zip`**。
 3. 下載後解壓縮該 ZIP 壓縮檔至任意資料夾。
 4. 雙擊開啟資料夾內的 **`index.html`**（支援 Chrome、Edge、Firefox 等任一現代瀏覽器），即可完全離線使用！
 
@@ -93,7 +93,7 @@ powershell -ExecutionPolicy Bypass -File scripts/qa.ps1
 ### 打包離線發布 ZIP
 ```powershell
 # 執行打包腳本（產出於 dist/ 目錄）
-powershell -ExecutionPolicy Bypass -File scripts/package-release.ps1 -Version "v1.7.0"
+powershell -ExecutionPolicy Bypass -File scripts/package-release.ps1 -Version "v1.7.1"
 ```
 
 ---
