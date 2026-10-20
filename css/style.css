@@ -1,88 +1,250 @@
-        :root {
-            --color-primary: #526F94;
-            --color-primary-hover: #58789A;
-            --color-accent: #52745F;
-            --bg: #F3F5F8;
-            --surface: rgba(255, 255, 255, 0.85);
-            --text: #2B364B;
-            --text-muted: #667080;
-            --warning: #965A4A;
-            --shadow: 0 8px 30px rgba(160, 175, 195, 0.12);
-        }
+/**
+ * 🎮 08_Financial-Data-Parser — 2D 遊戲金庫／Q 版方塊設計系統 (css/style.css)
+ * 整合全套 2D Game Design Tokens：
+ * - 實體深色描邊 (2.5px solid #1E293B) 與街機硬陰影 (Hard Drop Shadow)
+ * - WCAG AAA 超高對比文字、表格與設定面板
+ * - 緊湊雙欄工作台排版（首屏完整呈現上傳區、三大模式與立即轉檔按鈕）
+ */
 
-        body {
-            background: var(--bg) !important;
-            color: var(--text);
-            font-family: "Microsoft JhengHei", "Segoe UI", system-ui, sans-serif;
-        }
-        .container, #drop-zone, .radio-group > label > div {
-            box-shadow: var(--shadow);
-        }
-        .dropzone-hint svg { width: 42px; height: 42px; margin-bottom: 10px; fill: none; stroke: var(--color-primary); stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; opacity: .75; }
-        .drop-zone.has-files .dropzone-hint { display: none; }
-        input:focus, textarea:focus, select:focus {
-            border-color: var(--color-primary) !important;
-            box-shadow: 0 0 0 3px rgba(107, 139, 176, .16) !important;
-        }
+:root {
+    --game-bg: #F7F3E9;
+    --game-bg-pattern: #E4DCCF;
+    --game-surface: #FFFFFF;
+    --game-surface-warm: #FFFDF7;
+    --game-surface-subtle: #F1EFE6;
+    --game-surface-dark: #1E293B;
 
-        /* Loading Overlay */
-        #loading-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(255, 255, 255, 0.8);
-            backdrop-filter: blur(5px);
-            z-index: 9999;
-            display: none;
-            /* Flex when active */
-            justify-content: center;
-            align-items: center;
-            flex-direction: column;
-        }
+    --game-border-color: #1E293B;
+    --game-outline: 2.5px solid #1E293B;
+    --game-outline-sm: 1.5px solid #1E293B;
 
-        .spinner {
-            width: 50px;
-            height: 50px;
-            border: 5px solid #f3f3f3;
-            border-top: 5px solid var(--color-primary);
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-        }
+    --game-shadow-card: 0 5px 0 #1E293B;
+    --game-shadow-btn: 0 4px 0 #1E293B;
+    --game-shadow-btn-hover: 0 5px 0 #1E293B;
+    --game-shadow-btn-active: 0 1px 0 #1E293B;
+    --game-shadow-badge: 0 2px 0 #1E293B;
 
-        @keyframes spin {
-            0% {
-                transform: rotate(0deg);
-            }
+    --game-gold: #FFD23F;
+    --game-gold-bg: #FEF9C3;
+    --game-blue: #2563EB;
+    --game-blue-hover: #1D4ED8;
+    --game-green: #10B981;
 
-            100% {
-                transform: rotate(360deg);
-            }
-        }
+    --color-primary: #2563EB;
+    --color-primary-hover: #1D4ED8;
+    --color-accent: #2563EB;
+    --bg: #F7F3E9;
+    --surface: #FFFFFF;
+    --text: #0F172A;
+    --text-muted: #334155;
+    --warning: #B45309;
+    --shadow: var(--game-shadow-card);
+}
 
-        /* Toast Animation */
-        @keyframes slideInRight {
-            from {
-                transform: translateX(100%);
-                opacity: 0;
-            }
-            to {
-                transform: translateX(0);
-                opacity: 1;
-            }
-        }
-        @keyframes fadeOut {
-            from {
-                opacity: 1;
-            }
-            to {
-                opacity: 0;
-            }
-        }
-        .toast-enter {
-            animation: slideInRight 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
-        }
-        .toast-leave {
-            animation: fadeOut 0.3s ease-in forwards;
-        }
+body {
+    background-color: var(--game-bg) !important;
+    background-image: radial-gradient(var(--game-bg-pattern) 2px, transparent 2px) !important;
+    background-size: 24px 24px !important;
+    color: var(--text) !important;
+    font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans TC", "Microsoft JhengHei", system-ui, sans-serif !important;
+}
+
+/* 2D 主面板與側邊控制台 */
+.game-panel {
+    background: var(--game-surface-warm) !important;
+    border: var(--game-outline) !important;
+    border-radius: 16px !important;
+    box-shadow: var(--game-shadow-card) !important;
+}
+
+/* 2D 拖曳上傳寶箱區 */
+#drop-zone {
+    background: var(--game-surface) !important;
+    border: 2.5px dashed var(--game-border-color) !important;
+    border-radius: 14px !important;
+    box-shadow: inset 0 2px 0 rgba(30, 41, 59, 0.06), 0 3px 0 var(--game-border-color) !important;
+    transition: all 0.15s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+}
+
+#drop-zone:hover {
+    background: var(--game-gold-bg) !important;
+    border-style: solid !important;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 0 var(--game-border-color) !important;
+}
+
+.drop-zone.has-files .dropzone-hint { display: none; }
+
+/* 待轉檔清單項目 (2D 道具列) */
+.file-item {
+    background: var(--game-surface) !important;
+    border: var(--game-outline-sm) !important;
+    border-radius: 10px !important;
+    box-shadow: var(--game-shadow-badge) !important;
+    padding: 0.45rem 0.75rem !important;
+    margin-bottom: 0.4rem !important;
+}
+
+/* 三大匯出模式 2D 選擇卡 */
+.mode-card {
+    background: var(--game-surface) !important;
+    border: var(--game-outline) !important;
+    border-radius: 12px !important;
+    box-shadow: var(--game-shadow-btn) !important;
+    transition: all 0.15s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+}
+
+.mode-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--game-shadow-btn-hover) !important;
+}
+
+input[name="export-mode"]:checked + .mode-card {
+    background: var(--game-gold-bg) !important;
+    border-color: var(--game-border-color) !important;
+    box-shadow: 0 5px 0 var(--game-border-color), inset 0 0 0 2px #F59E0B !important;
+    transform: translateY(-2px);
+}
+
+input[name="export-mode"]:checked + .mode-card .mode-icon {
+    background: var(--game-gold) !important;
+    color: var(--text) !important;
+    border-color: var(--game-border-color) !important;
+}
+
+input[name="export-mode"]:checked + .mode-card .mode-spec-tag {
+    background: var(--game-surface-dark) !important;
+    color: #FFFFFF !important;
+}
+
+/* 2D 街機主轉檔按鈕 */
+#convert-btn {
+    background: var(--game-blue) !important;
+    color: #FFFFFF !important;
+    border: var(--game-outline) !important;
+    border-radius: 12px !important;
+    box-shadow: var(--game-shadow-btn) !important;
+    font-weight: 900 !important;
+    transition: all 0.14s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+}
+
+#convert-btn:hover:not(:disabled) {
+    background: var(--game-blue-hover) !important;
+    transform: translateY(-1px) !important;
+    box-shadow: var(--game-shadow-btn-hover) !important;
+}
+
+#convert-btn:active:not(:disabled) {
+    transform: translateY(3px) !important;
+    box-shadow: var(--game-shadow-btn-active) !important;
+}
+
+#convert-btn:disabled {
+    background: #CBD5E1 !important;
+    color: #475569 !important;
+    box-shadow: 0 2px 0 var(--game-border-color) !important;
+    cursor: not-allowed !important;
+    transform: none !important;
+}
+
+/* 2D 表單控制項 */
+.game-input-control {
+    background: var(--game-surface) !important;
+    border: var(--game-outline) !important;
+    border-radius: 10px !important;
+    color: var(--text) !important;
+    font-weight: 700 !important;
+    box-shadow: inset 0 2px 0 rgba(30, 41, 59, 0.06), 0 2px 0 var(--game-border-color) !important;
+}
+
+input:focus, textarea:focus, select:focus {
+    border-color: var(--game-border-color) !important;
+    background: #FFFDF5 !important;
+    box-shadow: 0 2px 0 var(--game-border-color), 0 0 0 3px var(--game-gold) !important;
+}
+
+/* 2D 規格對照小表格 */
+.spec-table {
+    width: 100%;
+    border-collapse: separate !important;
+    border-spacing: 0;
+    font-size: 0.76rem;
+    border: 2px solid var(--game-border-color) !important;
+    border-radius: 10px;
+    overflow: hidden;
+    background: var(--game-surface);
+    box-shadow: 0 3px 0 var(--game-border-color);
+}
+.spec-table th {
+    background: var(--game-surface-dark);
+    color: #FFFFFF;
+    font-weight: 800;
+    padding: 0.38rem 0.55rem;
+    text-align: left;
+    border-bottom: 2px solid var(--game-border-color);
+}
+.spec-table th + th,
+.spec-table td + td {
+    border-left: 1.5px solid #CBD5E1;
+}
+.spec-table td {
+    padding: 0.35rem 0.55rem;
+    border-top: 1.5px solid #CBD5E1;
+    color: var(--text);
+    font-weight: 700;
+}
+.spec-table tbody tr:first-child td {
+    border-top: none;
+}
+.spec-table tr:nth-child(even) td {
+    background: var(--game-surface-warm);
+}
+
+/* Loading Overlay */
+#loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(255, 253, 247, 0.88);
+    backdrop-filter: blur(4px);
+    z-index: 9999;
+    display: none;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+}
+
+.spinner {
+    width: 48px;
+    height: 48px;
+    border: 5px solid var(--game-surface-subtle);
+    border-top: 5px solid var(--game-blue);
+    border-radius: 50%;
+    animation: spin 0.9s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Toast Animation */
+@keyframes slideInRight {
+    from { transform: translateX(100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
+@keyframes fadeOut {
+    from { opacity: 1; }
+    to { opacity: 0; }
+}
+.toast-enter {
+    animation: slideInRight 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+    border: var(--game-outline) !important;
+    box-shadow: var(--game-shadow-btn) !important;
+    font-weight: 800 !important;
+}
+.toast-leave {
+    animation: fadeOut 0.25s ease-in forwards;
+}

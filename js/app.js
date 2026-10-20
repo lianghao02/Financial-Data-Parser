@@ -27,6 +27,11 @@ const app = (function () {
         return error;
     }
 
+    // 檔名（含 ZIP 內檔名）可能含 < > & 等字元，寫入 innerHTML 前一律跳脫，避免被當成 HTML 解析。
+    function escapeHtml(value) {
+        return String(value).replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+    }
+
     function showToast(message, type = 'info') {
         let container = document.getElementById('toast-container');
         if (!container) {
@@ -40,17 +45,17 @@ const app = (function () {
         toast.className = `toast-enter flex items-center gap-3 px-4 py-3 rounded-lg shadow-lg text-white max-w-sm pointer-events-auto`;
         
         if (type === 'error') {
-            toast.classList.add('bg-red-500');
+            toast.classList.add('bg-red-700');
             toast.innerHTML = `<svg class="w-6 h-6 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>`;
         } else if (type === 'success') {
-            toast.classList.add('bg-green-500');
+            toast.classList.add('bg-green-700');
             toast.innerHTML = `<svg class="w-6 h-6 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>`;
         } else {
-            toast.classList.add('bg-blue-500');
+            toast.classList.add('bg-blue-600');
             toast.innerHTML = `<svg class="w-6 h-6 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>`;
         }
 
-        toast.innerHTML += `<div class="text-sm font-medium break-words">${message}</div>`;
+        toast.innerHTML += `<div class="text-sm font-medium break-words">${escapeHtml(message)}</div>`;
         container.appendChild(toast);
 
         setTimeout(() => {
@@ -314,6 +319,8 @@ const app = (function () {
         if (filesToProcess.length > 0) {
             clearAllBtn.classList.remove("hidden");
             fileListTitle.classList.remove("hidden");
+            const totalBytes = filesToProcess.reduce((acc, f) => acc + (f.size || 0), 0);
+            fileListTitle.textContent = `📦 待轉檔清單 (${filesToProcess.length} 檔・共 ${formatSize(totalBytes)})`;
         } else {
             clearAllBtn.classList.add("hidden");
             fileListTitle.classList.add("hidden");
@@ -326,8 +333,8 @@ const app = (function () {
                 <div class="flex items-center gap-3 overflow-hidden">
                     <span class="text-xl">📄</span>
                     <div class="flex flex-col min-w-0">
-                        <span class="text-sm font-semibold truncate text-gray-700">${file.name}</span>
-                        <span class="text-xs text-gray-400">${formatSize(file.size)}</span>
+                        <span class="text-sm font-extrabold truncate text-slate-900">${escapeHtml(file.name)}</span>
+                        <span class="text-xs font-bold text-slate-600">${formatSize(file.size)}</span>
                     </div>
                 </div>
                 <button class="remove-btn text-gray-400 hover:text-danger transition-colors p-1" onclick="app.removeFile(${index})" title="移除檔案">

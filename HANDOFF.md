@@ -8,6 +8,22 @@
 - **Task Type**：HANDOFF
 - **Local Path Hint**：08_Financial-Data-Parser
 
+## 2026-10-20 2D Q 版介面接手收尾（Claude）
+- 前一輪（其他 Agent，已結束）未提交的 Q 版改版，本輪已驗收並一併提交。範圍：`css/style.css`、`index.html`、`js/app.js` 清單摘要。
+- 修正：
+  - Tailwind CDN 改為本機編譯的 `css/tailwind.css`，設定在 `scripts/tailwind.config.js`，以 `scripts/build-css.ps1` 重建。
+  - 檔名寫入 innerHTML 前先跳脫（`escapeHtml`）。
+  - `danger` 改為 `#B91C1C`；提示框改為 `red-700`／`green-700`／`blue-600`。
+- 驗證：
+  - `node --check js/app.js` 與 `scripts/qa.ps1` 通過。
+  - 在本機以 `http.server` 載入合成 CSV：
+    - 外部資源請求為 0。
+    - 可見文字對比掃描無任何項目低於 4.5:1。
+    - 以含 `<b>` 的檔名測試，顯示為純文字，未被解析成 HTML。
+- 未做：
+  - 沒有實際下載 Excel 驗證轉換結果；轉換邏輯未修改。
+  - 沒有升版、沒有重新打包。
+
 ## 目前狀態
 README 內容更新完成；本輪僅處理文件，產品與發布驗證沿用既有證據。
 
