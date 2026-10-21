@@ -94,6 +94,9 @@ start index.html
 # 檢查 JavaScript 語法
 node --check js/app.js
 
+# 執行轉換回歸測試（Node.js 20 以上；全部使用虛構的合成資料，執行與發布本身不需要 Node.js）
+npm test
+
 # 執行品質檢核與敏感資訊掃描
 powershell -ExecutionPolicy Bypass -File scripts/qa.ps1
 ```

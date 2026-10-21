@@ -1,5 +1,13 @@
 # HANDOFF
 
+## 2026-10-21 補轉換回歸測試並修正合併單頁金額（Claude）
+- 新增 `tests/`（`harness.js`＋`parser.test.js`，17 項）：用 Node `vm` 把 `js/app.js` 內的 Web Worker 程式碼原樣載入，搭配專案自帶的 `xlsx.bundle.js` 與虛構的合成資料驗證；正式程式碼不需為測試改動。執行：`npm test`（`package.json` 只有測試指令，沒有相依套件）。
+- 測試鎖住的行為：前導零與 19 位數帳號不失真、文字格式、數字模式只轉金額欄、UTF-8／UTF-16LE／Big5 讀檔、分頁名稱規則、壞檔隔離、合併分頁與單頁、開戶人儀表板。
+- **修正缺陷**：`processMergedSingleSheet` 對第二個檔案之後去掉標題列才清理，導致金額欄辨識失敗、符號未清除；改為補回標題後清理。已用測試重現後修正。
+- `scripts/qa.ps1` 加入測試步驟（有 Node.js 才執行）。
+- 未發布：此修正尚未升版或重新打包；v1.7.1 離線 ZIP 仍含此缺陷。線上版隨推送更新。
+- 限制：測試只鎖定已知行為，無法證明能處理沒見過的真實檔案格式；日後遇到解析失敗時，將樣本遮蔽個資後加進測試。
+
 ## 核心元資料 (Metadata)
 - **Repository**：lianghao02/Financial-Data-Parser
 - **Branch**：main

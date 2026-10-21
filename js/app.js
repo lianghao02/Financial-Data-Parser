@@ -926,6 +926,7 @@ const app = (function () {
                 const rows = await parseData(file);
                 if (rows.length === 0) continue;
                 let dataRows = [];
+                let headerSkipped = false;
                 if (i === 0) {
                     dataRows = rows;
                     firstFileHeader = rows[0]; 
@@ -933,12 +934,16 @@ const app = (function () {
                     if (rows.length > 0) {
                         if (JSON.stringify(rows[0]) === JSON.stringify(firstFileHeader)) {
                             dataRows = rows.slice(1);
+                            headerSkipped = true;
                         } else {
                             dataRows = rows; 
                         }
                     }
                 }
-                const cleanedRows = cleanData(dataRows, config);
+                // 已略過重複標題列時，補回標題交給清理函式辨識金額欄，再移除；否則第二個檔案之後的金額不會被清除。
+                const cleanedRows = headerSkipped
+                    ? cleanData([firstFileHeader].concat(dataRows), config).slice(1)
+                    : cleanData(dataRows, config);
                 combinedRows = combinedRows.concat(cleanedRows);
             } catch (err) {
                 errors.push("合併單頁 " + (i + 1) + " 時發生錯誤: " + err.message);
