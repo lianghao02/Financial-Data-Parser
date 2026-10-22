@@ -3,6 +3,7 @@
   "private": true,
   "description": "僅供開發測試使用；執行與發布不需要 Node.js，也沒有任何相依套件。",
   "scripts": {
-    "test": "node --test tests/parser.test.js"
+    "test": "node scripts/build-worker-source.cjs --check && node --test tests/parser.test.js",
+    "build:worker": "node scripts/build-worker-source.cjs"
   }
 }

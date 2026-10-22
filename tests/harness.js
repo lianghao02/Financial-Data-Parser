@@ -23,15 +23,25 @@ function extractWorkerCode() {
 
 function createWorker() {
     const posted = [];
-    const sandbox = { console, TextDecoder, TextEncoder, Uint8Array, ArrayBuffer, Date, importScripts() {} };
+    const sandbox = { console, TextDecoder, TextEncoder, Uint8Array, ArrayBuffer, Date, importScripts() { throw new Error('測試禁止網路載入'); }, location: { origin: 'null' } };
     sandbox.self = sandbox;
     sandbox.window = sandbox;
     sandbox.globalThis = sandbox;
     sandbox.postMessage = (message) => posted.push(message);
     const context = vm.createContext(sandbox);
-    vm.runInContext(fs.readFileSync(path.join(ROOT, 'js', 'libs', 'xlsx.bundle.js'), 'utf8'), context);
-    if (typeof context.XLSX === 'undefined') throw new Error('XLSX 未載入');
-    vm.runInContext(extractWorkerCode(), context);
+    // 與正式頁面使用同一份 Blob 組合；不可預先把 XLSX 注入 Worker。
+    const page = { window: {} };
+    page.globalThis = page.window;
+    const html = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf8');
+    if (html.includes('src="js/libs/xlsx.worker-source.js"')) {
+        vm.runInNewContext(fs.readFileSync(path.join(ROOT, 'js/libs/xlsx.worker-source.js'), 'utf8'), page);
+    }
+    const app = fs.readFileSync(path.join(ROOT, 'js/app.js'), 'utf8');
+    const parts = app.match(/new Blob\((\[[^\n]+\]), \{ type: 'application\/javascript' \}\)/);
+    if (!parts) throw new Error('找不到正式 Blob Worker 組合');
+    const source = vm.runInNewContext(parts[1], { workerCode: extractWorkerCode(), window: page.window });
+    vm.runInContext(source.join(''), context);
+    if (typeof context.XLSX === 'undefined') throw new Error('Worker XLSX 未載入');
     return { context, posted, XLSX: context.XLSX };
 }
 

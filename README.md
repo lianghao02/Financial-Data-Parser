@@ -1,6 +1,6 @@
 # 📊 金融資料 CSV 轉 Excel 解析工具 (Financial Data Parser)
 
-[![Version](https://img.shields.io/badge/version-v1.8.0-blue.svg?style=flat-square)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-v1.8.1-blue.svg?style=flat-square)](CHANGELOG.md)
 [![License](https://img.shields.io/badge/license-MIT-green.svg?style=flat-square)](LICENSE)
 [![GitHub Pages](https://img.shields.io/badge/Live%20Demo-GitHub%20Pages-brightgreen.svg?style=flat-square&logo=github)](https://lianghao02.github.io/Financial-Data-Parser/)
 [![Offline Ready](https://img.shields.io/badge/Offline-Ready-orange.svg?style=flat-square)](https://github.com/lianghao02/Financial-Data-Parser/releases)
@@ -34,7 +34,7 @@
 若您的電腦位於無網際網路連線之公務內網或機密環境，請下載離線包：
 
 1. 前往 **[Releases 發布頁面](https://github.com/lianghao02/Financial-Data-Parser/releases)**。
-2. 下載最新的 **`Financial-Data-Parser-v1.8.0.zip`**。
+2. 下載最新的 **`Financial-Data-Parser-v1.8.1.zip`**。
 3. 下載後解壓縮該 ZIP 壓縮檔至任意資料夾。
 4. 雙擊開啟資料夾內的 **`index.html`**（支援 Chrome、Edge、Firefox 等任一現代瀏覽器），即可完全離線使用！
 
@@ -104,7 +104,7 @@ powershell -ExecutionPolicy Bypass -File scripts/qa.ps1
 ### 打包離線發布 ZIP
 ```powershell
 # 執行打包腳本（產出於 dist/ 目錄）
-powershell -ExecutionPolicy Bypass -File scripts/package-release.ps1 -Version "v1.8.0"
+powershell -ExecutionPolicy Bypass -File scripts/package-release.ps1 -Version "v1.8.1"
 ```
 
 ---
@@ -130,8 +130,15 @@ powershell -ExecutionPolicy Bypass -File scripts/package-release.ps1 -Version "v
 | 編碼限制 | 自動辨識無法保證所有 UTF-8／Big5／UTF-16 變體皆正確。 | 匯出前抽查中文、欄位與分隔；亂碼時先確認來源編碼。 |
 | 資源／格式限制 | 大型 ZIP 占用記憶體；改成數值欄位可能破壞識別碼。 | 分批處理並維持帳號等欄位為文字；金額另核對負號、小數與總額。 |
 
-v1.8.0 的更新內容見 [CHANGELOG.md](CHANGELOG.md)。轉換成功不代表資料內容已完成稽核；回報時提供假帳號與少量可重現 CSV，勿附真實銀行交易。
+v1.8.1 的更新內容見 [CHANGELOG.md](CHANGELOG.md)。轉換成功不代表資料內容已完成稽核；回報時提供假帳號與少量可重現 CSV，勿附真實銀行交易。
 
 ### 問題回報
 
 請提供使用版本／啟動方式、作業系統與相關環境、重現步驟、預期及實際結果，以及去識別的錯誤訊息或最小樣本。先保留現場與來源資料；不要附真實案件、完整帳號、密碼、Token 或 API Key。版本修正以對應原始碼與發行包為準。
+
+
+### 離線 Worker 資源維護
+
+轉檔 Worker 將專案內附的 XLSX 套件直接放入 Blob，不使用 CDN 或 Worker 相對網址。`js/libs/xlsx.bundle.js` 保留為套件來源；更新套件後執行 `npm run build:worker`，產生可直接由傳統 script 載入的 `js/libs/xlsx.worker-source.js`。執行與離線 ZIP 不需要 Node.js。`npm test` 與 `scripts/qa.ps1` 會確認兩份資源同步，測試不再預先注入 XLSX。
+
+2026-10-22 修復已通過禁止網路載入的 17 項轉檔測試，以及 HTTP 子目錄真瀏覽器下載與內容核對。瀏覽器工具安全政策不允許開啟 `file://`，雙擊離線 ZIP 的實機驗收仍待人工完成；本修復納入 v1.8.1 發布；舊版 v1.8.0 不包含此修復。

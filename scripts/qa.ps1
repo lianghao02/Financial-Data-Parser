@@ -14,7 +14,7 @@ foreach ($file in $files) {
 $node = Get-Command node -ErrorAction SilentlyContinue
 if ($node) {
     Push-Location $root
-    try { & node --test tests/parser.test.js; if ($LASTEXITCODE -ne 0) { throw '轉換回歸測試失敗。' } } finally { Pop-Location }
+    try { & node scripts/build-worker-source.cjs --check; if ($LASTEXITCODE -ne 0) { throw 'Worker 套件不同步。' }; & node --test tests/parser.test.js; if ($LASTEXITCODE -ne 0) { throw '轉換回歸測試失敗。' } } finally { Pop-Location }
 } else {
     Write-Warning '找不到 Node.js，已略過轉換回歸測試。'
 }

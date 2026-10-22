@@ -367,22 +367,6 @@ const app = (function () {
 
     // --- Web Worker Blob ---
     const workerCode = `
-    if (typeof XLSX === 'undefined') {
-        try {
-            importScripts('js/libs/xlsx.bundle.js');
-        } catch (e1) {
-            try {
-                importScripts('../js/libs/xlsx.bundle.js');
-            } catch (e2) {
-                try {
-                    importScripts(self.location.origin + '/js/libs/xlsx.bundle.js');
-                } catch (e3) {
-                    importScripts('https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js');
-                }
-            }
-        }
-    }
-
     async function parseData(file) {
         const arrayBuffer = await file.arrayBuffer();
         const data = new Uint8Array(arrayBuffer);
@@ -982,7 +966,11 @@ const app = (function () {
     let workerInstance = null;
     function getWorker() {
         if (!workerInstance) {
-            const blob = new Blob([workerCode], { type: 'application/javascript' });
+            if (typeof window.XLSX_WORKER_SOURCE !== 'string') {
+                throw new Error('本機 XLSX 元件未載入，請確認離線包完整後再試。');
+            }
+            // 將內附套件直接放入 Blob，避免 file:// 與子目錄網址的載入限制。
+            const blob = new Blob([window.XLSX_WORKER_SOURCE, '\n', workerCode], { type: 'application/javascript' });
             const workerUrl = URL.createObjectURL(blob);
             workerInstance = new Worker(workerUrl);
             URL.revokeObjectURL(workerUrl);

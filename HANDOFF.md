@@ -1,78 +1,53 @@
 # HANDOFF
 
-## 2026-10-21 補轉換回歸測試並修正合併單頁金額（Claude）
-- 新增 `tests/`（`harness.js`＋`parser.test.js`，17 項）：用 Node `vm` 把 `js/app.js` 內的 Web Worker 程式碼原樣載入，搭配專案自帶的 `xlsx.bundle.js` 與虛構的合成資料驗證；正式程式碼不需為測試改動。執行：`npm test`（`package.json` 只有測試指令，沒有相依套件）。
-- 測試鎖住的行為：前導零與 19 位數帳號不失真、文字格式、數字模式只轉金額欄、UTF-8／UTF-16LE／Big5 讀檔、分頁名稱規則、壞檔隔離、合併分頁與單頁、開戶人儀表板。
-- **修正缺陷**：`processMergedSingleSheet` 對第二個檔案之後去掉標題列才清理，導致金額欄辨識失敗、符號未清除；改為補回標題後清理。已用測試重現後修正。
-- `scripts/qa.ps1` 加入測試步驟（有 Node.js 才執行）。
-- 已隨 v1.8.0 發布（2026-10-21）：離線 ZIP 為 Financial-Data-Parser-v1.8.0.zip；v1.7.1 的 ZIP 仍含此缺陷，請改用 v1.8.0。
-- 限制：測試只鎖定已知行為，無法證明能處理沒見過的真實檔案格式；日後遇到解析失敗時，將樣本遮蔽個資後加進測試。
-
 ## 核心元資料 (Metadata)
 - **Repository**：lianghao02/Financial-Data-Parser
 - **Branch**：main
-- **Commit SHA**：3b4f32aa7a02fc467274a51d09e127514acf6b4e（本輪提交前基準；最新提交以 Git 記錄為準）
+- **Commit SHA**：0bc9ef5d634333667c0921ab3bc66ce8c831071d（本輪修改前基準；本輪尚未提交）
 - **Skill Version**：v1.0.0
-- **Task Type**：HANDOFF
+- **Task Type**：FIX
 - **Local Path Hint**：08_Financial-Data-Parser
 
-## 2026-10-20 2D Q 版介面接手收尾（Claude）
-- 前一輪（其他 Agent，已結束）未提交的 Q 版改版，本輪已驗收並一併提交。範圍：`css/style.css`、`index.html`、`js/app.js` 清單摘要。
-- 修正：
-  - Tailwind CDN 改為本機編譯的 `css/tailwind.css`，設定在 `scripts/tailwind.config.js`，以 `scripts/build-css.ps1` 重建。
-  - 檔名寫入 innerHTML 前先跳脫（`escapeHtml`）。
-  - `danger` 改為 `#B91C1C`；提示框改為 `red-700`／`green-700`／`blue-600`。
-- 驗證：
-  - `node --check js/app.js` 與 `scripts/qa.ps1` 通過。
-  - 在本機以 `http.server` 載入合成 CSV：
-    - 外部資源請求為 0。
-    - 可見文字對比掃描無任何項目低於 4.5:1。
-    - 以含 `<b>` 的檔名測試，顯示為純文字，未被解析成 HTML。
-- 未做：
-  - 沒有實際下載 Excel 驗證轉換結果；轉換邏輯未修改。
-  - 沒有升版、沒有重新打包。
+---
 
-## 目前狀態
-README 內容更新完成；本輪僅處理文件，產品與發布驗證沿用既有證據。
+P26-10-22：使用者已授權提交與發布。此提交包含本輪已驗證的修正及 v1.8.1 版本更新。Tag、Release、部署與最終同步結果統一見控制中心 `docs/audit-release-20261022.md`，不得依提交前記錄重做修復。
 
 ## 本輪目標
-補齊概念、開發原因、典型使用流程、已知 Bug／限制與問題回報方式，保留現有功能。
+修正 Blob Worker 在 file://／網站子目錄找不到 XLSX、轉而連外載入的問題。
 
 ## 基準與已確認事實 (Baseline & Confirmed Facts)
-先讀現行 README 與專案規則／來源，再增補文件；Git 與原文基準保存在中央 artifacts/readme-refresh-baseline。
+起始為上述分支／SHA，工作目錄乾淨。只修改本輪已重現問題；19 排除。
 
 ## 已完成 (Completed)
-2026-10-06 GitHub 同步交接：使用者已授權提交與推送前輪成果；本輪只提交已核對範圍。最新 Commit SHA、遠端同步與 CI 結果統一見控制中心 `docs/github-sync/RESULTS.md`，不將提交本身的 SHA 寫入同一份提交。
-
-已更新 README，區分已修復歷史、功能限制與待驗證事項，不憑空新增已確認 Bug。
+以本機套件原文產生 xlsx.worker-source.js，直接組入 Blob Worker；移除全部 importScripts／CDN 備援。測試走正式 Blob 組合，不再預先注入 XLSX，且禁止網路載入；建置資源檢查統一換行。
 
 ## 異動檔案 (Changed Files)
-README.md、HANDOFF.md。
+js/app.js、js/libs/xlsx.worker-source.js、index.html、scripts/build-worker-source.cjs、scripts/qa.ps1、package.json、tests/harness.js、README.md、HANDOFF.md。
 
 ## 刻意未修改 (Do Not Do / Deliberately Omitted)
-產品程式、設定、環境、有效測試及使用者資料均未修改；未 Commit／Push。
+未修改使用者原始資料、全域規則、其他工作階段成果或既有發布包。依本輪授權提交與部署。
 
 ## 尚未完成 (Remaining Work)
-- **P1 (阻斷/必須)**：無本輪文件阻斷。
-- **P2 (重要/當次)**：文件驗證結果由中央 docs/readme-refresh/RESULTS.md 彙整。
-- **P3 (改善建議/暫緩)**：產品功能與不同電腦的實測屬另一個任務，不以文件更新宣稱通過。
+- **P1 (阻斷/必須)**：本機修正無已知阻斷。
+- **P2 (重要/當次)**：發布前依下列限制補必要實測；本輪尚未部署。
+- **P3 (改善建議/暫緩)**：瀏覽器安全政策不允許 file://，雙擊離線包仍需人工驗收；HTTP／vm 結果不代表該項通過。既有 v1.8.0 Release 尚未更新。維護套件後執行 npm run build:worker。
 
 ## 驗證結果 (Validation)
 ### 已執行測試與結果
-本次只檢查文件結構、相對連結、差異與 Git／既有修改保護；結果見中央報告。
+修正測試載入器後原始版本 17 項全數失敗；正式修正後 npm test 17/17、PowerShell 5.1 QA 與語法檢查通過。HTTP 子目錄真瀏覽器下載 synthetic.xlsx；長帳號 0012345678901234567 維持文字、金額 1234，主控台錯誤／警告為 0。
 ### 尚未驗證項目
-本輪未重新執行產品單元測試、GUI、遠端服務或發布驗證。
+瀏覽器安全政策不允許 file://，雙擊離線包仍需人工驗收；HTTP／vm 結果不代表該項通過。既有 v1.8.0 Release 尚未更新。維護套件後執行 npm run build:worker。
 ### 已知風險 (Known Risks)
-README 依現行來源與既有驗收整理，舊發布包不會自動包含原始碼修正。
+原始碼修正不會自動更新線上服務、已安裝 PWA 或舊下載包。
 
 ## Git 狀態
-- Commit：上述 SHA 為提交前基準；最新 SHA 見 `git log -1` 與中央同步報告。
-- Push：實際推送及遠端核對結果見中央 `docs/github-sync/RESULTS.md`。
-- Working Tree：最終狀態見中央同步報告；不含被忽略的環境、成品與使用者資料。
+- Commit：本輪修正與發布準備合併為獨立提交；實際 SHA 見 Git 與中央發布報告。
+- Push：使用者已授權，本提交後執行並核對。
+- Working Tree：提交後確認 Clean；不包含被忽略的成品與測試環境。
 - Branch：main。
 
 ## 下一步建議動作 (Next Recommended Action)
-文件檢查完成後停止擴大修改；有實際問題再以可重現資料另案處理。
+核對中央 `docs/audit-release-20261022.md` 的實際發布結果；成功後停止擴大修改，僅保留已註明的人工驗收。
 
 ## 發布狀態 (Release Status)
-本輪未建立或發布新版本。
+使用者已授權本輪發布；產品版本與實際 Release／部署核對結果以中央發布報告為準。人工驗收缺口不冒充通過。
