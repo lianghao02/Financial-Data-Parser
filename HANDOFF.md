@@ -3,7 +3,7 @@
 ## 核心元資料 (Metadata)
 - **Repository**：lianghao02/Financial-Data-Parser
 - **Branch**：main
-- **Commit SHA**：0bc9ef5d634333667c0921ab3bc66ce8c831071d（本輪修改前基準；本輪尚未提交）
+- **Commit SHA**：0bc9ef5d634333667c0921ab3bc66ce8c831071d（本輪修改前基準；本輪已提交，最新提交以 Git 記錄為準）
 - **Skill Version**：v1.0.0
 - **Task Type**：FIX
 - **Local Path Hint**：08_Financial-Data-Parser
