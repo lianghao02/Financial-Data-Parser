@@ -222,9 +222,19 @@ const app = (function () {
             try {
                 const ext = file.name.split('.').pop().toLowerCase();
                 if (['csv', 'xlsx', 'xls'].includes(ext)) {
-                    if (!filesToProcess.some(f => f.name === file.name && f.size === file.size)) {
-                        filesToProcess.push(file);
+                    // 同名同大小不代表內容相同；保留每份來源並避免輸出檔名衝突。
+                    const originalName = file.name;
+                    let candidateName = originalName;
+                    let counter = 1;
+                    const extIdx = originalName.lastIndexOf('.');
+                    while (filesToProcess.some(f => f.name === candidateName)) {
+                        candidateName = `${originalName.substring(0, extIdx)}_(${counter++})${originalName.substring(extIdx)}`;
                     }
+                    if (candidateName !== originalName) {
+                        file = new File([file], candidateName, { type: file.type, lastModified: file.lastModified });
+                        showToast(`同名檔案已保留為 ${candidateName}`, 'info');
+                    }
+                    filesToProcess.push(file);
                 } else if (ext === 'zip') {
                     await processZipFile(file, { entries: 0, uncompressedBytes: 0 });
                 }
@@ -367,7 +377,8 @@ const app = (function () {
 
     // --- Web Worker Blob ---
     const workerCode = `
-    async function parseData(file) {
+    async function parseData(file, allSheets = false) {
+        if (file.rows) return file.rows;
         const arrayBuffer = await file.arrayBuffer();
         const data = new Uint8Array(arrayBuffer);
         
@@ -406,8 +417,27 @@ const app = (function () {
             wb = XLSX.read(data, { type: 'array' });
         }
         
-        const ws = wb.Sheets[wb.SheetNames[0]];
-        return XLSX.utils.sheet_to_json(ws, { header: 1, raw: false, defval: "" });
+        const sheets = wb.SheetNames.map(name => ({
+            name,
+            rows: XLSX.utils.sheet_to_json(wb.Sheets[name], { header: 1, raw: false, defval: "" })
+        }));
+        return allSheets ? sheets : (sheets[0] ? sheets[0].rows : []);
+    }
+
+    // 合併模式將每個來源工作表獨立處理，檔名仍保留供銀行辨識。
+    async function expandWorksheets(files, errors) {
+        const expanded = [];
+        for (const file of files) {
+            try {
+                const sheets = await parseData(file, true);
+                for (const sheet of sheets) {
+                    if (sheet.rows.length) expanded.push({ name: file.name, rows: sheet.rows, sourceSheet: sheets.length > 1 ? sheet.name : '' });
+                }
+            } catch (err) {
+                errors.push('讀取檔案 ' + file.name + ' 時發生錯誤: ' + err.message);
+            }
+        }
+        return expanded;
     }
 
     function isCurrencyHeader(header) {
@@ -708,23 +738,29 @@ const app = (function () {
         for (let i = 0; i < files.length; i++) {
             try {
                 const file = files[i];
-                const rows = await parseData(file);
-                const cleanedRows = cleanData(rows, config);
+                const sheets = await parseData(file, true);
                 const wb = XLSX.utils.book_new();
+                for (const sheet of sheets) {
+                    const cleanedRows = cleanData(sheet.rows, config);
+                    if (!cleanedRows.length) {
+                        XLSX.utils.book_append_sheet(wb, {}, sheet.name);
+                        continue;
+                    }
+                    const headers = cleanedRows[0];
+                    const typeName = getHeaderFingerprint(headers);
                 
-                const headers = cleanedRows[0];
-                const typeName = getHeaderFingerprint(headers);
+                    const nameIdx = headers.findIndex(h => typeof h === 'string' && (h.includes('戶名') || h.includes('姓名')));
+                    let nameFromData = "";
+                    if (nameIdx !== -1 && cleanedRows.length > 1) nameFromData = String(cleanedRows[1][nameIdx]).trim();
                 
-                const nameIdx = headers.findIndex(h => typeof h === 'string' && (h.includes('戶名') || h.includes('姓名')));
-                let nameFromData = "";
-                if (nameIdx !== -1 && cleanedRows.length > 1) nameFromData = String(cleanedRows[1][nameIdx]).trim();
+                    let sheetName = nameFromData ? (nameFromData + "_" + typeName) : typeName;
+                    if (sheets.length > 1) sheetName = sheet.name;
+                    sheetName = sheetName.replace(/[\\\\:\\/?*\\[\\]]/g, "_").substring(0, 31);
                 
-                let sheetName = nameFromData ? (nameFromData + "_" + typeName) : typeName;
-                sheetName = sheetName.replace(/[\\\\:\\/?*\\[\\]]/g, "_").substring(0, 31);
-                
-                const ws = XLSX.utils.aoa_to_sheet(cleanedRows);
-                applyExcelCellFormatting(ws, config);
-                XLSX.utils.book_append_sheet(wb, ws, sheetName);
+                    const ws = XLSX.utils.aoa_to_sheet(cleanedRows);
+                    applyExcelCellFormatting(ws, config);
+                    XLSX.utils.book_append_sheet(wb, ws, sheetName);
+                }
                 let outName = file.name.replace(/\\.(csv|xlsx|xls)$/i, ".xlsx");
                 if (config.customFilename) outName = config.customFilename + "_" + (i + 1) + ".xlsx";
                 
@@ -741,10 +777,10 @@ const app = (function () {
         const wb = XLSX.utils.book_new();
         let accountOpenerRows = [];
         const idToNameMap = {};
-        const accountToBankMap = {};
-        const accountToNameMap = {};
+        const accountToNameMap = new Map();
         const allFileData = [];
         const errors = [];
+        files = await expandWorksheets(files, errors);
         
         const bankCodes = {
             "004": "台銀", "005": "土銀", "006": "合庫", "007": "一銀", "008": "華南",
@@ -755,6 +791,13 @@ const app = (function () {
             "805": "遠東", "806": "元大", "807": "永豐", "808": "玉山", "809": "凱基",
             "812": "台新", "815": "日盛", "816": "安泰", "822": "中信"
         };
+
+        function bankForRow(headers, row, file) {
+            const branchIdx = headers.findIndex(h => typeof h === 'string' &&
+                (h.includes('總分支機構代碼') || h.includes('開戶行庫分行簡稱代碼')));
+            const code = branchIdx === -1 ? '' : String(row[branchIdx] || '').trim().substring(0, 3);
+            return bankCodes[code] || getShortBankName(file.name);
+        }
 
         for (let i = 0; i < files.length; i++) {
             try {
@@ -768,25 +811,21 @@ const app = (function () {
                     const nameIdx = headers.findIndex(h => typeof h === 'string' && (h.includes('戶名') || h.includes('姓名')));
                     const idIdx = headers.findIndex(h => typeof h === 'string' && (h.includes('身分證') || h.includes('證號')));
                     const accIdx = headers.findIndex(h => typeof h === 'string' && h.includes('帳號'));
-                    const branchIdx = headers.findIndex(h => typeof h === 'string' && (h.includes('總分支機構代碼') || h.includes('開戶行總分支機構代碼')));
                     
                     cleanedRows.slice(1).forEach(row => {
                         const id = String(row[idIdx] || '').trim();
                         const name = String(row[nameIdx] || '').trim();
                         const acc = String(row[accIdx] || '').trim().replace(/[-]/g, '');
-                        const branch = String(row[branchIdx] || '').trim();
+                        const bank = bankForRow(headers, row, file);
                         
                         if (id && name && !idToNameMap[id]) {
                             idToNameMap[id] = name;
                         }
-                        if (acc) {
-                            if (name) accountToNameMap[acc] = name;
-                            if (branch) {
-                                const code = branch.substring(0, 3);
-                                if (bankCodes[code]) {
-                                    accountToBankMap[acc] = bankCodes[code];
-                                }
-                            }
+                        if (acc && bank && name) {
+                            const key = bank + ':' + acc;
+                            // 同一銀行帳號若出現不同戶名，保留衝突狀態，不採最後一筆覆蓋。
+                            if (!accountToNameMap.has(key)) accountToNameMap.set(key, name);
+                            else if (accountToNameMap.get(key) !== name) accountToNameMap.set(key, null);
                         }
                     });
                 }
@@ -821,8 +860,9 @@ const app = (function () {
                 }
                 
                 let nameFromData = "";
-                if (accNum && accountToNameMap[accNum]) {
-                    nameFromData = accountToNameMap[accNum];
+                const bankShort = bankForRow(headers, cleanedRows[1] || [], file);
+                if (accNum && bankShort && accountToNameMap.get(bankShort + ':' + accNum)) {
+                    nameFromData = accountToNameMap.get(bankShort + ':' + accNum);
                 }
                 if (!nameFromData && nameIdx !== -1 && cleanedRows.length > 1) {
                     nameFromData = String(cleanedRows[1][nameIdx]).trim();
@@ -832,13 +872,6 @@ const app = (function () {
                     if (idToNameMap[id]) nameFromData = idToNameMap[id];
                 }
                 
-                let bankShort = "";
-                if (accNum && accountToBankMap[accNum]) {
-                    bankShort = accountToBankMap[accNum];
-                }
-                if (!bankShort) {
-                    bankShort = getShortBankName(file.name);
-                }
                 
                 let accSuffix = "";
                 if (accNum && accNum.length >= 4) {
@@ -864,6 +897,7 @@ const app = (function () {
                 }
 
                 if (config.sheetPrefix) sheetName = config.sheetPrefix + sheetName;
+                if (file.sourceSheet) sheetName += '_' + file.sourceSheet;
                 sheetName = sheetName.replace(/[\\\\:\\/?*\\[\\]]/g, "_");
                 if (sheetName.length > 31) sheetName = sheetName.substring(0, 31);
 
@@ -903,6 +937,7 @@ const app = (function () {
         let combinedRows = [];
         let firstFileHeader = [];
         const errors = [];
+        files = await expandWorksheets(files, errors);
 
         for (let i = 0; i < files.length; i++) {
             try {

@@ -68,4 +68,26 @@ function readDownload(worker, message) {
     return worker.XLSX.read(new Uint8Array(message.data), { type: 'array', cellNF: true });
 }
 
-module.exports = { createWorker, fakeFile, runConvert, readDownload };
+function createPage() {
+    let source = fs.readFileSync(path.join(ROOT, 'js/app.js'), 'utf8');
+    const marker = 'init: init,';
+    if (!source.includes(marker)) throw new Error('找不到頁面測試匯出位置');
+    source = source.replace(marker, 'handleFiles, getFiles: () => filesToProcess, ' + marker);
+    const elements = {};
+    const element = () => ({ value: '', style: {}, classList: { toggle() {}, add() {}, remove() {} }, appendChild() {}, addEventListener() {} });
+    const sandbox = {
+        File, Blob, console, setTimeout: () => 0,
+        document: {
+            getElementById: id => elements[id] ||= element(),
+            createElement: element, addEventListener() {},
+            documentElement: { style: { setProperty() {} } }
+        }
+    };
+    vm.createContext(sandbox);
+    vm.runInContext(source, sandbox);
+    const page = vm.runInContext('app', sandbox);
+    page.init();
+    return page;
+}
+
+module.exports = { createWorker, fakeFile, runConvert, readDownload, createPage };

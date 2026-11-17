@@ -3,7 +3,7 @@
 // 目的：鎖住「長數字不失真、前導零保留、金額符號清除、合併正確」等已確認行為，防止日後修改時默默改壞。
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { createWorker, fakeFile, runConvert, readDownload } = require('./harness');
+const { createWorker, fakeFile, runConvert, readDownload, createPage } = require('./harness');
 
 const TEXT_CFG = { cellType: 'text', stripCurrency: true, sheetPrefix: '', themeColor: '#1E3A8A', customFilename: '' };
 // 沙盒（vm）內建立的陣列與測試檔的陣列屬於不同執行環境，嚴格比較前先轉成純 JSON。
@@ -193,4 +193,67 @@ test('開戶人資料合併後會產生「開戶人」儀表板並排在第一�
     const out = await runConvert(w, [fakeFile('reply_012_basic.csv', csv)], 'merged_sheets', TEXT_CFG);
     const wb = readDownload(w, out.find(m => m.type === 'download'));
     assert.equal(wb.SheetNames[0], '開戶人');
+});
+
+
+for (const mode of ['individual', 'merged_sheets', 'merged_single_sheet']) {
+    test('多工作表完整匯入：' + mode, async () => {
+        const w = createWorker();
+        const input = w.XLSX.utils.book_new();
+        for (const [name, account] of [['第一頁', '001'], ['第二頁', '002']]) {
+            w.XLSX.utils.book_append_sheet(input, w.XLSX.utils.aoa_to_sheet([['帳號', '餘額'], [account, '100']]), name);
+        }
+        const file = fakeFile('多頁.xlsx', Buffer.from(w.XLSX.write(input, { type: 'array', bookType: 'xlsx' })));
+        const out = await runConvert(w, [file], mode, TEXT_CFG);
+        const downloads = out.filter(m => m.type === 'download');
+        assert.equal(downloads.length, 1);
+        const wb = readDownload(w, downloads[0]);
+        const rows = wb.SheetNames.flatMap(name => w.XLSX.utils.sheet_to_json(wb.Sheets[name], { header: 1 }));
+        assert.ok(rows.some(r => r[0] === '001'));
+        assert.ok(rows.some(r => r[0] === '002'));
+        if (mode === 'individual') eq(wb.SheetNames, ['第一頁', '第二頁']);
+        eq(out.at(-1).errors, []);
+    });
+}
+
+test('跨銀行同帳號依各銀行歸戶，來源銀行不明時不猜測', async () => {
+    const w = createWorker();
+    const files = [
+        fakeFile('reply_004_basic.csv', '戶名,帳號,開戶行總分支機構代碼\n甲,00123456,0040001\n'),
+        fakeFile('reply_822_basic.csv', '戶名,帳號,開戶行總分支機構代碼\n乙,00123456,8220001\n'),
+        fakeFile('reply_004_trn.csv', '帳號,餘額\n00123456,100\n'),
+        fakeFile('明細.csv', '帳號,餘額\n00123456,200\n')
+    ];
+    const out = await runConvert(w, files, 'merged_sheets', TEXT_CFG);
+    const wb = readDownload(w, out.find(m => m.type === 'download'));
+    assert.ok(wb.SheetNames.includes('甲_台銀3456_交易明細'));
+    assert.ok(wb.SheetNames.includes('未知_3456_交易明細'));
+});
+
+
+test('同名同大小且內容不同的檔案完整保留，匯出名稱不衝突', async () => {
+    const page = createPage();
+    const first = new File(['帳號,餘額\n001,100\n'], '明細.csv');
+    const second = new File(['帳號,餘額\n002,200\n'], '明細.csv');
+    assert.equal(first.size, second.size);
+    await page.handleFiles([first, second]);
+    const files = page.getFiles();
+    assert.equal(files.length, 2);
+    eq(files.map(f => f.name), ['明細.csv', '明細_(1).csv']);
+    assert.equal(await files[0].text(), await first.text());
+    assert.equal(await files[1].text(), await second.text());
+    const w = createWorker();
+    const out = await runConvert(w, files, 'individual', TEXT_CFG);
+    eq(out.filter(m => m.type === 'download').map(m => m.filename), ['明細.xlsx', '明細_(1).xlsx']);
+});
+
+test('同銀行同帳號戶名衝突時，無戶名的交易不採最後一人', async () => {
+    const w = createWorker();
+    const out = await runConvert(w, [
+        fakeFile('reply_004_a.csv', '戶名,帳號\n甲,00123456\n'),
+        fakeFile('reply_004_b.csv', '戶名,帳號\n乙,00123456\n'),
+        fakeFile('reply_004_trn.csv', '帳號,餘額\n00123456,100\n')
+    ], 'merged_sheets', TEXT_CFG);
+    const wb = readDownload(w, out.find(m => m.type === 'download'));
+    assert.ok(wb.SheetNames.includes('未知_台銀3456_交易明細'));
 });
